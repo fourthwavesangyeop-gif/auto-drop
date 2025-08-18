@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Safe Reconnect, Delay in seconds)</title>
+  <title>Auto Drop Module — Web UI (Stable Reconnect)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -106,7 +106,7 @@
       </div>
 
       <div class="hr"></div>
-      <div class="hint">※ 개폐 딜레이는 <b>초(s)</b>로 입력합니다. 이 UI가 장치로 전송할 때 <b>ms</b>로 자동 변환합니다.</div>
+      <div class="hint">※ 개폐 딜레이는 <b>초(s)</b>로 입력하며, 전송 시 <b>ms</b>로 변환됩니다.</div>
       <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
       <div id="log" class="log"></div>
     </div>
@@ -117,54 +117,58 @@
     const map = L.map('map', { zoomControl: true }).setView([36.351, 127.384], 15);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     let marker = null;
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      setLatLon(lat, lng);
-      placeMarker(lat, lng);
-    });
+    map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); placeMarker(lat, lng); });
     function placeMarker(lat, lng){ if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng]).addTo(map); }
-    function setLatLon(lat, lon){
-      document.getElementById('lat').value = lat.toFixed(6);
-      document.getElementById('lon').value = lon.toFixed(6);
-    }
+    function setLatLon(lat, lon){ latI.value = lat.toFixed(6); lonI.value = lon.toFixed(6); }
 
     // ---------- UI helpers ----------
     const logEl = document.getElementById('log');
     function log(msg, color){ const d=document.createElement('div'); if(color)d.style.color=color; d.textContent=msg; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
     function setPortStatus(connected){
-      document.getElementById('portDot').className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
-      document.getElementById('portLbl').textContent = connected ? 'Connected' : 'Disconnected';
-      document.getElementById('btnDisconnect').disabled = !connected;
+      portDot.className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
+      portLbl.textContent = connected ? 'Connected' : 'Disconnected';
+      btnDisconnect.disabled = !connected;
     }
     function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
-    // ---------- Web Serial (Safe Reconnect) ----------
+    // ---------- Form refs ----------
+    const latI = document.getElementById('lat');
+    const lonI = document.getElementById('lon');
+    const vI   = document.getElementById('v');
+    const hI   = document.getElementById('h');
+    const pminI= document.getElementById('pmin');
+    const pmaxI= document.getElementById('pmax');
+    const onsI = document.getElementById('ons');
+    const massI= document.getElementById('mass');
+    const portDot = document.getElementById('portDot');
+    const portLbl = document.getElementById('portLbl');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+
+    // ---------- Web Serial (no pipeTo; direct reader/writer) ----------
     let port = null;
-    let reader = null, writer = null;
-    let inputStreamClosed = null, outputStreamClosed = null;
-    let textDecoder = null, textEncoder = null;
+    let reader = null;
+    let writer = null;
+    const encoder = new TextEncoder();
+    let closing = false;
+
+    function canSend(){
+      if (closing) { log('> [WARN] 해제 중입니다. 잠시만요.', '#ffd479'); return false; }
+      if (!writer) { log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return false; }
+      return true;
+    }
 
     async function connectSerial(){
       if(!('serial' in navigator)){ alert('Chrome/Edge에서 https 또는 localhost로 실행하세요.'); return; }
       try{
         const ports = await navigator.serial.getPorts();
         port = ports[0] || await navigator.serial.requestPort();
-
         await port.open({ baudRate: 115200 });
 
-        // OUTPUT 파이프(쓰기)
-        textEncoder = new TextEncoderStream();
-        outputStreamClosed = textEncoder.readable.pipeTo(port.writable);
-        writer = textEncoder.writable.getWriter();
-
-        // INPUT 파이프(읽기)
-        textDecoder = new TextDecoderStream();
-        inputStreamClosed = port.readable.pipeTo(textDecoder.writable);
-        reader = textDecoder.readable.getReader();
-
+        writer = port.writable.getWriter();
+        reader = port.readable.getReader();
         setPortStatus(true);
         log('> [INFO] 시리얼 연결됨', '#9be5a3');
-        readLoop().catch(()=>{});
+        readLoop(); // no await
       }catch(err){
         console.error(err);
         log('> [ERR] 연결 실패: '+err.message, '#ff8b8b');
@@ -174,57 +178,71 @@
     }
 
     async function disconnectSerial(){
+      closing = true;
       try{
-        if(reader){ try{ await reader.cancel(); }catch{} }
-        if(inputStreamClosed){ try{ await inputStreamClosed; }catch{} }
-        if(reader){ try{ reader.releaseLock(); }catch{} }
-        reader = null;
-
-        if(writer){ try{ await writer.close(); }catch{} }
-        if(outputStreamClosed){ try{ await outputStreamClosed; }catch{} }
-        if(writer){ try{ writer.releaseLock(); }catch{} }
-        writer = null;
-
-        if(port){ try{ await port.close(); }catch{} }
+        // 1) 읽기 종료
+        if (reader){
+          try{ await reader.cancel(); }catch{}
+          try{ reader.releaseLock(); }catch{}
+          reader = null;
+        }
+        // 2) 쓰기 종료
+        if (writer){
+          try{ await writer.close(); }catch{}
+          try{ writer.releaseLock(); }catch{}
+          writer = null;
+        }
+        // 3) 포트 닫기
+        if (port){ try{ await port.close(); }catch{} }
         port = null;
 
         setPortStatus(false);
         log('> [INFO] 연결 해제', '#ffd479');
-        await sleep(250);
-      }catch(err){
-        log('> [ERR] 해제 실패: '+err.message, '#ff8b8b');
+        await sleep(250); // 32U4 안정 대기
+      }finally{
+        closing = false;
       }
     }
 
     async function safeTearDown(){
       try{ if(reader){ await reader.cancel(); } }catch{}
-      try{ if(inputStreamClosed){ await inputStreamClosed; } }catch{}
       try{ if(reader){ reader.releaseLock(); } }catch{}
       reader = null;
-
       try{ if(writer){ await writer.close(); } }catch{}
-      try{ if(outputStreamClosed){ await outputStreamClosed; } }catch{}
       try{ if(writer){ writer.releaseLock(); } }catch{}
       writer = null;
-
       try{ if(port){ await port.close(); } }catch{}
       port = null;
     }
 
     async function readLoop(){
       while(reader){
-        const { value, done } = await reader.read();
-        if(done) break;
-        if(value) value.split(/\r?\n/).forEach(l=>l&&log(l));
+        try{
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value){
+            const text = new TextDecoder().decode(value);
+            text.split(/\r?\n/).forEach(l=>l&&log(l));
+          }
+        }catch(err){
+          // cancel()하면 여기로 들어올 수 있음
+          break;
+        }
       }
     }
 
     async function sendLine(s){
-      if(!writer){ log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return; }
-      await writer.write((s.trim()+'\n'));
-      log('> '+s, '#9bb1d6');
+      if (!canSend()) return;
+      try{
+        const data = encoder.encode(s.trim()+'\n');
+        await writer.write(data);
+        log('> '+s, '#9bb1d6');
+      }catch(err){
+        log('> [ERR] 전송 실패: '+err.message, '#ff8b8b');
+      }
     }
 
+    // 장치 연결/해제 이벤트
     navigator.serial.addEventListener('disconnect', async ()=>{
       log('> [WARN] 장치 연결 해제 감지', '#ffd479');
       await safeTearDown();
@@ -236,20 +254,20 @@
 
     // ---------- Compose parameter line (on_s → on_ms) ----------
     function buildParamLine(){
-      const lat  = parseFloat(document.getElementById('lat').value);
-      const lon  = parseFloat(document.getElementById('lon').value);
-      const v    = parseFloat(document.getElementById('v').value);
-      const h    = parseFloat(document.getElementById('h').value);
-      const pmin = parseInt(document.getElementById('pmin').value, 10);
-      const pmax = parseInt(document.getElementById('pmax').value, 10);
-      const ons  = parseFloat(document.getElementById('ons').value); // 초(s)
-      const massStr = document.getElementById('mass').value.trim();
+      const lat  = parseFloat(latI.value);
+      const lon  = parseFloat(lonI.value);
+      const v    = parseFloat(vI.value);
+      const h    = parseFloat(hI.value);
+      const pmin = parseInt(pminI.value, 10);
+      const pmax = parseInt(pmaxI.value, 10);
+      const ons  = parseFloat(onsI.value); // 초(s)
+      const massStr = massI.value.trim();
 
       if ([lat, lon, v, h, pmin, pmax, ons].some(x => Number.isNaN(x))){
         alert('필수 항목을 모두 입력하세요.'); return null;
       }
 
-      const onms = Math.max(100, Math.round(ons * 1000)); // 장치가 ms 기대 → 최소 100ms 보정
+      const onms = Math.max(100, Math.round(ons * 1000));
       const latStr = lat.toFixed(6), lonStr = lon.toFixed(6);
 
       if (!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
@@ -262,11 +280,7 @@
     document.getElementById('btnConnect').addEventListener('click', connectSerial);
     document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
     document.getElementById('btnSend').addEventListener('click', async ()=>{ const line=buildParamLine(); if(line) await sendLine(line); });
-    document.getElementById('btnRad').addEventListener('click', async ()=>{
-      const v = document.getElementById('rad').value.trim();
-      if(!v){ alert('RAD 목표(m)를 입력하세요.'); return; }
-      await sendLine(`rad ${v}`);
-    });
+    document.getElementById('btnRad').addEventListener('click', async ()=>{ const v=document.getElementById('rad').value.trim(); if(!v){ alert('RAD 목표(m)를 입력하세요.'); return; } await sendLine(`rad ${v}`); });
     document.getElementById('btnVtOff').addEventListener('click', async ()=>{ await sendLine('vtoff'); });
     document.getElementById('btnTest').addEventListener('click', async ()=>{ await sendLine('test'); });
     document.getElementById('btnReady').addEventListener('click', async ()=>{ await sendLine('ready'); });
