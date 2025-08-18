@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Reconnect Fix)</title>
+  <title>Auto Drop Module — Web UI (Satellite + Safe Reset)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -115,7 +115,9 @@
       btnDisconnect.disabled = !connected;
     }
     function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-    function enableInputs(){ [latI, lonI, vI, hI, pminI, pmaxI, onsI, massI].forEach(el => { el.disabled = false; el.readOnly = false; }); }
+    function enableInputs(){
+      [latI, lonI, vI, hI, pminI, pmaxI, onsI, massI].forEach(el => { el.disabled = false; el.readOnly = false; });
+    }
 
     // ---------- Form refs ----------
     const latI = document.getElementById('lat');
@@ -147,56 +149,35 @@
     // ---------- Web Serial ----------
     let port = null, reader = null, writer = null;
     const encoder = new TextEncoder();
-    let isConnecting = false, isDisconnecting = false;
+    let closing = false;
 
     function canSend(){
+      if (closing) { log('> [WARN] 해제 중입니다. 잠시만요.', '#ffd479'); return false; }
       if (!writer) { log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return false; }
       return true;
     }
 
     async function connectSerial(){
       if(!('serial' in navigator)){ alert('Chrome/Edge에서 https 또는 localhost로 실행하세요.'); return; }
-      if (isConnecting){ log('> [INFO] 연결 중입니다...', '#9bb1d6'); return; }
       if (writer){ log('> [INFO] 이미 연결되어 있습니다.', '#9be5a3'); return; }
-
-      isConnecting = true;
       try{
-        // 혹시 남아있을 잔여 핸들/열린 포트 정리
+        // 잔여 핸들 정리
         await safeTearDown();
 
-        // 1) 권한 있는 포트 우선
-        let p = (await navigator.serial.getPorts())[0] || null;
-
-        // 2) 없으면 필터 포함 chooser
-        if (!p){
-          try{
-            p = await navigator.serial.requestPort({ filters: [
-              { usbVendorId: 0x2341 }, // Arduino
-              { usbVendorId: 0x1A86 }, // CH340
-              { usbVendorId: 0x10C4 }, // CP210x
-              { usbVendorId: 0x0403 }, // FTDI
-              { usbVendorId: 0x1B4F }  // SparkFun (Pro Micro 계열)
-            ]});
-          }catch(e){
-            // 3) 필터 미매칭일 수 있으니, 필터 없이 마지막 시도
-            try{ p = await navigator.serial.requestPort(); }catch{ /* 사용자 취소 */ }
-          }
+        // 포트 선택(요청 우선 -> 취소 시 기존 권한 포트)
+        let p = null;
+        try { p = await navigator.serial.requestPort({ filters: [
+          { usbVendorId: 0x2341 }, { usbVendorId: 0x1A86 }, { usbVendorId: 0x10C4 }, { usbVendorId: 0x0403 }
+        ]}); } catch {
+          const ports = await navigator.serial.getPorts();
+          p = ports[0] || null;
         }
-
         if (!p){ log('> [ERR] 포트를 선택하지 않았습니다.', '#ff8b8b'); return; }
 
-        // 혹시 이전 상태에서 열려있으면 닫고 재시도
-        try{ await p.open({ baudRate: 115200 }); }
-        catch(e){
-          // InvalidStateError 등 → 닫고 재오픈
-          try{ await p.close(); }catch{}
-          await sleep(50);
-          await p.open({ baudRate: 115200 });
-        }
-
+        await p.open({ baudRate: 115200 });
         writer = p.writable.getWriter();
         reader = p.readable.getReader();
-        port   = p;
+        port = p;
 
         setPortStatus(true);
         enableInputs();
@@ -207,38 +188,20 @@
         log('> [ERR] 연결 실패: '+err.message, '#ff8b8b');
         await safeTearDown();
         setPortStatus(false);
-      }finally{
-        isConnecting = false;
       }
     }
 
     async function disconnectSerial(){
-      if (isDisconnecting){ return; }
-      isDisconnecting = true;
+      closing = true;
       try{
-        // 읽기 중지
-        if (reader){
-          try{ await reader.cancel(); }catch{}
-          try{ reader.releaseLock(); }catch{}
-          reader = null;
-        }
-        // 쓰기 중지
-        if (writer){
-          try{ await writer.close(); }catch{}
-          try{ writer.releaseLock(); }catch{}
-          writer = null;
-        }
-        // 포트 닫기
-        if (port){
-          try{ await port.close(); }catch{}
-          port = null;
-        }
-        await sleep(80); // 일부 브라우저에서 즉시 재연결 시 충돌 방지
+        if (reader){ try{ await reader.cancel(); }catch{} try{ reader.releaseLock(); }catch{} reader = null; }
+        if (writer){ try{ await writer.close(); }catch{} try{ writer.releaseLock(); }catch{} writer = null; }
+        if (port){ try{ await port.close(); }catch{} }
+        port = null;
         setPortStatus(false);
         log('> [INFO] 연결 해제', '#ffd479');
-      }finally{
-        isDisconnecting = false;
-      }
+        await sleep(150);
+      }finally{ closing = false; }
     }
 
     async function safeTearDown(){
@@ -300,13 +263,20 @@
       return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
     }
 
-    // ---------- Reset (UI only) ----------
+    // ---------- Reset (UI only; never touches serial) ----------
     function resetForm(){
+      // 입력 가능 보장
       enableInputs();
+
+      // 좌표 초기화 + 지도 이동
       setLatLon(INIT.lat, INIT.lon);
       moveMarker(INIT.lat, INIT.lon, true);
+
+      // 나머지 입력 초기화(입력은 그대로 활성 상태 유지)
       vI.value = hI.value = pminI.value = pmaxI.value = onsI.value = massI.value = '';
-      log('> [UI] 폼을 초기화했습니다. (시리얼 연결 상태 유지)', '#9bb1d6');
+
+      log('> [UI] 폼을 초기화했습니다. (시리얼 연결 유지)', '#9bb1d6');
+      // ★ 시리얼 포트/reader/writer에는 절대 손대지 않음
     }
 
     // ---------- Buttons ----------
