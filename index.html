@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Minimal)</title>
+  <title>Auto Drop Module — Web UI (Minimal + Reset)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -54,7 +54,7 @@
         <span class="pill"><span id="portDot" class="stat-dot dot-err"></span><span id="portLbl">Disconnected</span></span>
       </div>
       <div id="map"></div>
-      <div class="hint">지도를 클릭하면 오른쪽 “목표 좌표”가 자동으로 채워집니다.</div>
+      <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다.</div>
     </div>
 
     <!-- RIGHT: Form + Serial -->
@@ -90,26 +90,33 @@
         <button id="btnConnect" class="ok">시리얼 연결</button>
         <button id="btnDisconnect" class="warn" disabled>연결 해제</button>
         <button id="btnSend" class="primary">파라미터 전송</button>
+        <button id="btnReset">리셋</button>
       </div>
 
       <div class="hr"></div>
       <div class="hint">※ 개폐 딜레이는 <b>초(s)</b>로 입력하며, 전송 시 <b>ms</b>로 변환됩니다.</div>
-      <div class="hint">아두이노 시리얼 로그</div>
+      <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
       <div id="log" class="log"></div>
     </div>
   </div>
 
   <script>
-    // ----- 초기 좌표: 37.8765842, 127.1577533 -----
+    // ----- 초기 좌표 -----
     const INIT = { lat: 37.8765842, lon: 127.1577533 };
 
     // ---------- Map ----------
     const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     let marker = null;
-    map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); placeMarker(lat, lng); });
-    function placeMarker(lat, lng){ if (marker) marker.setLatLng([lat, lng]); else marker = L.marker([lat, lng]).addTo(map); }
-    function setLatLon(lat, lon){ latI.value = lat.toFixed(6); lonI.value = lon.toFixed(6); }
+    map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); moveMarker(lat, lng, false); });
+    function moveMarker(lat, lon, center=true){
+      if (marker) marker.setLatLng([lat, lon]); else marker = L.marker([lat, lon]).addTo(map);
+      center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
+    }
+    function setLatLon(lat, lon){
+      latI.value = lat.toFixed(6);
+      lonI.value = lon.toFixed(6);
+    }
 
     // ---------- UI helpers ----------
     const logEl = document.getElementById('log');
@@ -133,6 +140,25 @@
     const portDot = document.getElementById('portDot');
     const portLbl = document.getElementById('portLbl');
     const btnDisconnect = document.getElementById('btnDisconnect');
+
+    // ---------- 입력 좌표 → 지도 동기화 ----------
+    function isValidLatLon(lat, lon){
+      return Number.isFinite(lat) && Number.isFinite(lon) &&
+             lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    }
+    function updateMapFromInputs(center=true){
+      const lat = parseFloat(latI.value);
+      const lon = parseFloat(lonI.value);
+      if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center);
+    }
+    function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+    const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 400);
+
+    latI.addEventListener('input', debouncedUpdate);
+    lonI.addEventListener('input', debouncedUpdate);
+    latI.addEventListener('change', ()=>updateMapFromInputs(true));
+    lonI.addEventListener('change', ()=>updateMapFromInputs(true));
+    [latI, lonI].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') updateMapFromInputs(true); }));
 
     // ---------- Web Serial (direct reader/writer; stable reconnect) ----------
     let port = null;
@@ -250,13 +276,36 @@
         alert('필수 항목을 모두 입력하세요.'); return null;
       }
 
-      const onms = Math.max(100, Math.round(ons * 1000)); // 장치가 기대하는 ms
+      const onms = Math.max(100, Math.round(ons * 1000));
       const latStr = lat.toFixed(6), lonStr = lon.toFixed(6);
 
       if (!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
       const mass = parseFloat(massStr);
       if (Number.isNaN(mass)){ alert('투하물 중량 값을 확인하세요.'); return null; }
       return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
+    }
+
+    // ---------- Reset (NEW) ----------
+    function resetForm(){
+      // 좌표 초기화 + 지도/마커 이동
+      setLatLon(INIT.lat, INIT.lon);
+      moveMarker(INIT.lat, INIT.lon, true);
+
+      // 나머지 입력 초기화
+      vI.value = '';
+      hI.value = '';
+      pminI.value = '';
+      pmaxI.value = '';
+      onsI.value = '';
+      massI.value = '';
+
+      log('> [UI] 폼을 초기화했습니다.', '#9bb1d6');
+
+      // 장치도 초기화할지 선택(확인 시 clear 전송)
+      if (writer){
+        const doClear = confirm('장치도 초기화(clear) 명령을 보낼까요?');
+        if (doClear) sendLine('clear');
+      }
     }
 
     // ---------- Buttons ----------
@@ -266,9 +315,10 @@
       const line = buildParamLine();
       if (line) await sendLine(line);
     });
+    document.getElementById('btnReset').addEventListener('click', resetForm);
 
     // 초기 표시
-    placeMarker(INIT.lat, INIT.lon);
+    moveMarker(INIT.lat, INIT.lon, true);
     setLatLon(INIT.lat, INIT.lon);
     setPortStatus(false);
   </script>
