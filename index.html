@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Minimal + Reset)</title>
+  <title>Auto Drop Module — Web UI (Satellite + Reset Fix)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -54,7 +54,7 @@
         <span class="pill"><span id="portDot" class="stat-dot dot-err"></span><span id="portLbl">Disconnected</span></span>
       </div>
       <div id="map"></div>
-      <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다.</div>
+      <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다. (위성/일반 전환 가능)</div>
     </div>
 
     <!-- RIGHT: Form + Serial -->
@@ -104,9 +104,25 @@
     // ----- 초기 좌표 -----
     const INIT = { lat: 37.8765842, lon: 127.1577533 };
 
-    // ---------- Map ----------
+    // ---------- Map with Satellite ----------
     const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+
+    // 일반 지도 (OSM)
+    const baseOSM = L.tileLayer(
+      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+      { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
+    );
+
+    // 위성 지도 (Esri World Imagery)
+    const baseSAT = L.tileLayer(
+      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+      { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
+    );
+
+    // 기본은 위성
+    baseSAT.addTo(map);
+    L.control.layers({ '위성': baseSAT, '일반지도': baseOSM }).addTo(map);
+
     let marker = null;
     map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); moveMarker(lat, lng, false); });
     function moveMarker(lat, lon, center=true){
@@ -160,12 +176,14 @@
     lonI.addEventListener('change', ()=>updateMapFromInputs(true));
     [latI, lonI].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') updateMapFromInputs(true); }));
 
-    // ---------- Web Serial (direct reader/writer; stable reconnect) ----------
+    // ---------- Web Serial ----------
     let port = null;
     let reader = null;
     let writer = null;
     const encoder = new TextEncoder();
     let closing = false;
+
+    function portOpen() { return port && port.readable && port.writable && writer && reader; }
 
     function canSend(){
       if (closing) { log('> [WARN] 해제 중입니다. 잠시만요.', '#ffd479'); return false; }
@@ -176,7 +194,7 @@
     async function connectSerial(){
       if(!('serial' in navigator)){ alert('Chrome/Edge에서 https 또는 localhost로 실행하세요.'); return; }
       try{
-        const ports = await navigator.serial.getPorts();
+        const ports = await navigator.serial.getPorts(); // 권한 있는 포트
         port = ports[0] || await navigator.serial.requestPort();
         await port.open({ baudRate: 115200 });
 
@@ -226,6 +244,27 @@
       writer = null;
       try{ if(port){ await port.close(); } }catch{}
       port = null;
+    }
+
+    async function tryAutoReconnect(){
+      // 권한 있는 포트가 있으면 자동 재연결
+      try{
+        const ports = await navigator.serial.getPorts();
+        if (!ports.length) return false;
+        port = ports[0];
+        await port.open({ baudRate: 115200 });
+        writer = port.writable.getWriter();
+        reader = port.readable.getReader();
+        setPortStatus(true);
+        readLoop();
+        log('> [INFO] 리셋 후 자동 재연결 완료', '#9be5a3');
+        return true;
+      }catch(e){
+        log('> [WARN] 자동 재연결 실패: '+e.message, '#ffd479');
+        await safeTearDown();
+        setPortStatus(false);
+        return false;
+      }
     }
 
     async function readLoop(){
@@ -285,26 +324,29 @@
       return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
     }
 
-    // ---------- Reset (NEW) ----------
-    function resetForm(){
-      // 좌표 초기화 + 지도/마커 이동
+    // ---------- Reset (robust) ----------
+    async function resetForm(){
+      // UI 좌표 초기화 + 지도/마커 이동
       setLatLon(INIT.lat, INIT.lon);
       moveMarker(INIT.lat, INIT.lon, true);
 
       // 나머지 입력 초기화
-      vI.value = '';
-      hI.value = '';
-      pminI.value = '';
-      pmaxI.value = '';
-      onsI.value = '';
-      massI.value = '';
+      vI.value = hI.value = pminI.value = pmaxI.value = onsI.value = massI.value = '';
 
       log('> [UI] 폼을 초기화했습니다.', '#9bb1d6');
 
-      // 장치도 초기화할지 선택(확인 시 clear 전송)
+      // 연결되어 있으면 장치 초기화 여부 확인 후 clear 전송
       if (writer){
         const doClear = confirm('장치도 초기화(clear) 명령을 보낼까요?');
-        if (doClear) sendLine('clear');
+        if (doClear){
+          try { await sendLine('clear'); } catch {}
+          // 장치가 재부팅/재열거되며 연결이 끊길 수 있음 → 자동 복구 시도
+          await sleep(200);
+          if (!portOpen()){
+            await safeTearDown();
+            await tryAutoReconnect(); // 권한 있으면 자동 재연결
+          }
+        }
       }
     }
 
