@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Stable Reconnect)</title>
+  <title>Auto Drop Module — Web UI (Minimal)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -93,19 +93,6 @@
       </div>
 
       <div class="hr"></div>
-      <div class="btnbar">
-        <button id="btnRad">rad 적용</button>
-        <div class="with-unit" style="width:160px"><input id="rad" type="number" step="0.1" placeholder="RAD 목표"><span class="unit">m</span></div>
-        <button id="btnVtOff">vtoff</button>
-        <button id="btnTest">test</button>
-        <button id="btnReady">ready</button>
-        <button id="btnRearm">rearm</button>
-        <button id="btnClear">clear</button>
-        <button id="btnAttach">attach</button>
-        <button id="btnDetach">detach</button>
-      </div>
-
-      <div class="hr"></div>
       <div class="hint">※ 개폐 딜레이는 <b>초(s)</b>로 입력하며, 전송 시 <b>ms</b>로 변환됩니다.</div>
       <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
       <div id="log" class="log"></div>
@@ -144,7 +131,7 @@
     const portLbl = document.getElementById('portLbl');
     const btnDisconnect = document.getElementById('btnDisconnect');
 
-    // ---------- Web Serial (no pipeTo; direct reader/writer) ----------
+    // ---------- Web Serial (direct reader/writer; stable reconnect) ----------
     let port = null;
     let reader = null;
     let writer = null;
@@ -168,7 +155,7 @@
         reader = port.readable.getReader();
         setPortStatus(true);
         log('> [INFO] 시리얼 연결됨', '#9be5a3');
-        readLoop(); // no await
+        readLoop();
       }catch(err){
         console.error(err);
         log('> [ERR] 연결 실패: '+err.message, '#ff8b8b');
@@ -180,25 +167,22 @@
     async function disconnectSerial(){
       closing = true;
       try{
-        // 1) 읽기 종료
         if (reader){
           try{ await reader.cancel(); }catch{}
           try{ reader.releaseLock(); }catch{}
           reader = null;
         }
-        // 2) 쓰기 종료
         if (writer){
           try{ await writer.close(); }catch{}
           try{ writer.releaseLock(); }catch{}
           writer = null;
         }
-        // 3) 포트 닫기
         if (port){ try{ await port.close(); }catch{} }
         port = null;
 
         setPortStatus(false);
         log('> [INFO] 연결 해제', '#ffd479');
-        await sleep(250); // 32U4 안정 대기
+        await sleep(250);
       }finally{
         closing = false;
       }
@@ -224,10 +208,7 @@
             const text = new TextDecoder().decode(value);
             text.split(/\r?\n/).forEach(l=>l&&log(l));
           }
-        }catch(err){
-          // cancel()하면 여기로 들어올 수 있음
-          break;
-        }
+        }catch{ break; }
       }
     }
 
@@ -242,7 +223,6 @@
       }
     }
 
-    // 장치 연결/해제 이벤트
     navigator.serial.addEventListener('disconnect', async ()=>{
       log('> [WARN] 장치 연결 해제 감지', '#ffd479');
       await safeTearDown();
@@ -267,7 +247,7 @@
         alert('필수 항목을 모두 입력하세요.'); return null;
       }
 
-      const onms = Math.max(100, Math.round(ons * 1000));
+      const onms = Math.max(100, Math.round(ons * 1000)); // 장치가 기대하는 ms
       const latStr = lat.toFixed(6), lonStr = lon.toFixed(6);
 
       if (!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
@@ -279,15 +259,10 @@
     // ---------- Buttons ----------
     document.getElementById('btnConnect').addEventListener('click', connectSerial);
     document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
-    document.getElementById('btnSend').addEventListener('click', async ()=>{ const line=buildParamLine(); if(line) await sendLine(line); });
-    document.getElementById('btnRad').addEventListener('click', async ()=>{ const v=document.getElementById('rad').value.trim(); if(!v){ alert('RAD 목표(m)를 입력하세요.'); return; } await sendLine(`rad ${v}`); });
-    document.getElementById('btnVtOff').addEventListener('click', async ()=>{ await sendLine('vtoff'); });
-    document.getElementById('btnTest').addEventListener('click', async ()=>{ await sendLine('test'); });
-    document.getElementById('btnReady').addEventListener('click', async ()=>{ await sendLine('ready'); });
-    document.getElementById('btnRearm').addEventListener('click', async ()=>{ await sendLine('rearm'); });
-    document.getElementById('btnClear').addEventListener('click', async ()=>{ await sendLine('clear'); });
-    document.getElementById('btnAttach').addEventListener('click', async ()=>{ await sendLine('attach'); });
-    document.getElementById('btnDetach').addEventListener('click', async ()=>{ await sendLine('detach'); });
+    document.getElementById('btnSend').addEventListener('click', async ()=>{
+      const line = buildParamLine();
+      if (line) await sendLine(line);
+    });
 
     // 초기 표시
     placeMarker(36.351, 127.384);
