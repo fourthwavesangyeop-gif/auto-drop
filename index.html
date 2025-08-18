@@ -100,8 +100,10 @@
   </div>
 
   <script>
+    // ----- 초기 좌표: 대진대학교 산학협력단 -----
+    const INIT = { lat: 37.867451, lon: 127.156129 };
+
     // ---------- Map ----------
-    const INIT = { lat: 37.867451, lon: 127.156129 }; // Daejin Univ IACF
     const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     let marker = null;
