@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <title>Auto Drop Module — Standalone</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <!-- Leaflet (지도) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <style>
+    :root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
+    *{box-sizing:border-box}
+    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
+    .wrap{display:grid;grid-template-columns:1.25fr 0.9fr;gap:14px;max-width:1200px;margin:18px auto;padding:0 12px}
+    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.28);padding:14px}
+    #map{height:560px;border-radius:12px;overflow:hidden}
+    h1{font-size:18px;margin:0 0 10px}
+    .pill{padding:6px 10px;border-radius:999px;background:#0f1726;border:1px solid var(--line)}
+    .titlebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+    .stat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+    .dot-ok{background:var(--ok)} .dot-err{background:var(--err)}
+    /* 폼: 사진처럼 라벨/값 세로 배열 */
+    .form{display:grid;grid-template-columns:auto 1fr;grid-row-gap:12px;grid-column-gap:12px;align-items:center}
+    .label{color:#d9e6ff}
+    input[type="number"], input[type="text"]{width:100%;padding:8px 10px;border:1px solid #2a3a56;border-radius:8px;background:#0e1520;color:var(--ink);outline:none}
+    .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .inline{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .btnbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+    button{background:#152238;color:var(--ink);border:1px solid #2a3a56;border-radius:10px;padding:9px 12px;cursor:pointer}
+    button.primary{background:var(--accent);border-color:transparent;color:#0b0f14;font-weight:700}
+    button.ok{background:var(--ok);color:#06210f;border-color:transparent}
+    button.warn{background:var(--warn);color:#1f1500;border-color:transparent}
+    button:disabled{opacity:.55;cursor:not-allowed}
+    .hr{height:1px;background:var(--line);margin:12px 0}
+    .log{height:210px;background:#0a0f18;border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;font-family:ui-monospace,Consolas,monospace;color:#d8e2ff}
+    .hint{font-size:12px;color:var(--muted);margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <!-- LEFT: Map -->
+    <div class="card">
+      <div class="titlebar">
+        <h1>Target Picker (지도 클릭)</h1>
+        <span class="pill"><span id="portDot" class="stat-dot dot-err"></span><span id="portLbl">Disconnected</span></span>
+      </div>
+      <div id="map"></div>
+      <div class="hint">지도를 클릭하면 오른쪽 “목표 좌표”가 자동으로 채워집니다.</div>
+    </div>
+
+    <!-- RIGHT: Form (사진 스타일) + Serial -->
+    <div class="card">
+      <h1>Auto Drop Module</h1>
+      <div class="form">
+        <div class="label">목표 좌표:</div>
+        <div class="pair">
+          <input id="lat" type="number" step="0.000001" placeholder="위도 (deg)">
+          <input id="lon" type="number" step="0.000001" placeholder="경도 (deg)">
+        </div>
+
+        <div class="label">속도:</div>
+        <div><input id="v" type="number" step="0.1" placeholder="m/s"></div>
+
+        <div class="label">고도:</div>
+        <div><input id="h" type="number" step="0.1" placeholder="m"></div>
+
+        <div class="label">PWM MIN/MAX:</div>
+        <div class="inline">
+          <input id="pmin" type="number" step="10" placeholder="MIN (μs)">
+          <input id="pmax" type="number" step="10" placeholder="MAX (μs)">
+        </div>
+
+        <div class="label">개폐 딜레이:</div>
+        <div><input id="onms" type="number" step="10" placeholder="ms (또는 ≤60=초)"></div>
+
+        <div class="label">투하물 중량:</div>
+        <div><input id="mass" type="number" step="0.01" placeholder="kg (옵션)"></div>
+      </div>
+
+      <div class="btnbar">
+        <button id="btnConnect" class="ok">시리얼 연결</button>
+        <button id="btnDisconnect" class="warn" disabled>연결 해제</button>
+        <button id="btnSend" class="primary">파라미터 전송</button>
+      </div>
+
+      <div class="hr"></div>
+      <div class="btnbar">
+        <button id="btnRad">rad 적용</button>
+        <input id="rad" type="number" step="0.1" placeholder="RAD 목표 (m)" style="width:160px">
+        <button id="btnVtOff">vtoff</button>
+        <button id="btnTest">test</button>
+        <button id="btnReady">ready</button>
+        <button id="btnRearm">rearm</button>
+        <button id="btnClear">clear</button>
+        <button id="btnAttach">attach</button>
+        <button id="btnDetach">detach</button>
+      </div>
+
+      <div class="hr"></div>
+      <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+
+  <script>
+    // ---------- Map ----------
+    const map = L.map('map', { zoomControl: true }).setView([36.351, 127.384], 15); // 대전 근방
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
+    let marker = null;
+    map.on('click', (e) => {
+      const { lat, lng } = e.latlng;
+      setLatLon(lat, lng);
+      placeMarker(lat, lng);
+    });
+    function placeMarker(lat, lng){
+      if (marker) marker.setLatLng([lat, lng]);
+      else marker = L.marker([lat, lng]).addTo(map);
+    }
+    function setLatLon(lat, lon){
+      document.getElementById('lat').value = lat.toFixed(6);
+      document.getElementById('lon').value = lon.toFixed(6);
+    }
+
+    // ---------- UI helpers ----------
+    const logEl = document.getElementById('log');
+    function log(msg, color){
+      const d = document.createElement('div');
+      if (color) d.style.color = color;
+      d.textContent = msg;
+      logEl.appendChild(d);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+    function setPortStatus(connected){
+      document.getElementById('portDot').className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
+      document.getElementById('portLbl').textContent = connected ? 'Connected' : 'Disconnected';
+      document.getElementById('btnDisconnect').disabled = !connected;
+    }
+
+    // ---------- Web Serial ----------
+    let port = null, reader = null, inputStreamClosed = null;
+    let writer = null;
+
+    async function connectSerial(){
+      if (!('serial' in navigator)){
+        alert('Web Serial 미지원 브라우저입니다. Chrome/Edge에서 https 또는 localhost로 실행하세요.');
+        return;
+      }
+      try{
+        port = await navigator.serial.requestPort();
+        await port.open({ baudRate: 115200 });
+
+        // writer
+        const textEncoder = new TextEncoderStream();
+        textEncoder.readable.pipeTo(port.writable);
+        writer = textEncoder.writable.getWriter();
+
+        // reader
+        const textDecoder = new TextDecoderStream();
+        inputStreamClosed = port.readable.pipeTo(textDecoder.writable);
+        reader = textDecoder.readable.getReader();
+
+        setPortStatus(true);
+        log('> [INFO] 시리얼 연결됨', '#9be5a3');
+        readLoop();
+      }catch(err){
+        console.error(err);
+        log('> [ERR] 연결 실패: ' + err.message, '#ff8b8b');
+      }
+    }
+    async function disconnectSerial(){
+      try{
+        if (reader){ await reader.cancel().catch(()=>{}); await inputStreamClosed.catch(()=>{}); reader = null; }
+        if (writer){ writer.releaseLock(); writer = null; }
+        if (port){ await port.close(); port = null; }
+        setPortStatus(false);
+        log('> [INFO] 연결 해제', '#ffd479');
+      }catch(err){
+        log('> [ERR] 해제 실패: ' + err.message, '#ff8b8b');
+      }
+    }
+    async function readLoop(){
+      try{
+        while (true){
+          const { value, done } = await reader.read();
+          if (done) break;
+          if (value) value.split(/\r?\n/).forEach(line => line && log(line));
+        }
+      }catch(err){
+        log('> [WARN] 읽기 종료: ' + err.message, '#ffd479');
+      }
+    }
+    async function sendLine(s){
+      if (!writer){ log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return; }
+      await writer.write((s.trim() + '\n'));
+      log('> ' + s, '#9bb1d6');
+    }
+
+    // ---------- Compose parameter line ----------
+    function buildParamLine(){
+      const lat  = parseFloat(document.getElementById('lat').value);
+      const lon  = parseFloat(document.getElementById('lon').value);
+      const v    = parseFloat(document.getElementById('v').value);
+      const h    = parseFloat(document.getElementById('h').value);
+      const pmin = parseInt(document.getElementById('pmin').value, 10);
+      const pmax = parseInt(document.getElementById('pmax').value, 10);
+      const onms = parseInt(document.getElementById('onms').value, 10);
+      const massStr = document.getElementById('mass').value.trim();
+
+      if ([lat, lon, v, h, pmin, pmax, onms].some(x => Number.isNaN(x))){
+        alert('모든 필수 항목을 입력하세요.'); return null;
+      }
+      const latStr = lat.toFixed(6);
+      const lonStr = lon.toFixed(6);
+
+      if (!massStr.length){
+        return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
+      } else {
+        const mass = parseFloat(massStr);
+        if (Number.isNaN(mass)){ alert('투하물 중량 값을 확인하세요.'); return null; }
+        return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
+      }
+    }
+
+    // ---------- Buttons ----------
+    document.getElementById('btnConnect').addEventListener('click', connectSerial);
+    document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
+    document.getElementById('btnSend').addEventListener('click', async ()=>{
+      const line = buildParamLine();
+      if (line) await sendLine(line);
+    });
+    document.getElementById('btnRad').addEventListener('click', async ()=>{
+      const v = document.getElementById('rad').value.trim();
+      if (!v){ alert('RAD 목표(m)를 입력하세요.'); return; }
+      await sendLine(`rad ${v}`);
+    });
+    document.getElementById('btnVtOff').addEventListener('click', async ()=>{ await sendLine('vtoff'); });
+    document.getElementById('btnTest').addEventListener('click', async ()=>{ await sendLine('test'); });
+    document.getElementById('btnReady').addEventListener('click', async ()=>{ await sendLine('ready'); });
+    document.getElementById('btnRearm').addEventListener('click', async ()=>{ await sendLine('rearm'); });
+    document.getElementById('btnClear').addEventListener('click', async ()=>{ await sendLine('clear'); });
+    document.getElementById('btnAttach').addEventListener('click', async ()=>{ await sendLine('attach'); });
+    document.getElementById('btnDetach').addEventListener('click', async ()=>{ await sendLine('detach'); });
+
+    // 초기 표시
+    placeMarker(36.351, 127.384);
+    setLatLon(36.351000, 127.384000);
+  </script>
+</body>
+</html>
