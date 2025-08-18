@@ -101,7 +101,8 @@
 
   <script>
     // ---------- Map ----------
-    const map = L.map('map', { zoomControl: true }).setView([36.351, 127.384], 15);
+    const INIT = { lat: 37.867451, lon: 127.156129 }; // Daejin Univ IACF
+    const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' }).addTo(map);
     let marker = null;
     map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); placeMarker(lat, lng); });
@@ -265,8 +266,8 @@
     });
 
     // 초기 표시
-    placeMarker(37.876, 127.157);
-    setLatLon(36.876000, 127.157000);
+    placeMarker(INIT.lat, INIT.lon);
+    setLatLon(INIT.lat, INIT.lon);
     setPortStatus(false);
   </script>
 </body>
