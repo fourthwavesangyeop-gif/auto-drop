@@ -2,18 +2,16 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Satellite + Safe Reset)</title>
+  <title>Auto Drop Module — Web UI (Map-safe loader)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <!-- Leaflet -->
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <style>
     :root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
     .wrap{display:grid;grid-template-columns:1.25fr 0.9fr;gap:14px;max-width:1200px;margin:18px auto;padding:0 12px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.28);padding:14px}
-    #map{height:560px;border-radius:12px;overflow:hidden}
+    #map{height:560px;border-radius:12px;overflow:hidden;position:relative}
+    #map .mapmsg{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:14px;color:#dbe7ff}
     h1{font-size:18px;margin:0 0 10px}
     .pill{padding:6px 10px;border-radius:999px;background:#0f1726;border:1px solid var(--line)}
     .titlebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -25,7 +23,7 @@
     .inline{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .with-unit{position:relative}
     .with-unit input{width:100%;padding:8px 56px 8px 10px;border:1px solid #2a3a56;border-radius:8px;background:#0e1520;color:var(--ink);outline:none}
-    .unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:var(--muted);font-size:12px;pointer-events:none}
+    .unit{position:absolute;right:10px;top:50%;transform:translateY(-50%);color:#9bb1d6;font-size:12px;pointer-events:none}
     .btnbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px;align-items:center}
     button{background:#152238;color:var(--ink);border:1px solid #2a3a56;border-radius:10px;padding:9px 12px;cursor:pointer}
     button.primary{background:var(--accent);border-color:transparent;color:#0b0f14;font-weight:700}
@@ -35,52 +33,57 @@
     .hr{height:1px;background:var(--line);margin:12px 0}
     .log{height:210px;background:#0a0f18;border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;font-family:ui-monospace,Consolas,monospace;color:#d8e2ff}
     .hint{font-size:12px;color:#9bb1d6;margin-top:6px}
-
-    /* ✅ invalid input highlight */
-    .with-unit input[aria-invalid="true"]{
-      border-color: var(--err);
-      box-shadow: 0 0 0 3px rgba(255,107,107,.18);
-    }
-    /* ✅ inline error box (non-blocking) */
-    .errbox{display:none;margin:8px 0 2px;padding:8px 10px;border-radius:8px;border:1px solid var(--err);background:rgba(255,107,107,.1);color:var(--err);font-size:13px}
+    .with-unit input[aria-invalid="true"]{ border-color: var(--err); box-shadow: 0 0 0 3px rgba(255,107,107,.18); }
+    .errbox{display:none;margin:8px 0 2px;padding:8px 10px;border-radius:8px;border:1px solid var(--err);background:rgba(255,107,107,.1);color:var(--err);font-size:13px;pointer-events:none}
     .errbox.show{display:block}
   </style>
+  <script>
+    // Leaflet loader with CDN fallback (unpkg → jsDelivr)
+    function loadCSS(href){return new Promise((res,rej)=>{const l=document.createElement('link');l.rel='stylesheet';l.href=href;l.onload=res;l.onerror=rej;document.head.appendChild(l);});}
+    function loadJS(src){return new Promise((res,rej)=>{const s=document.createElement('script');s.src=src;s.defer=true;s.onload=res;s.onerror=rej;document.head.appendChild(s);});}
+    async function ensureLeaflet(){
+      const css1='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      const js1 ='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+      const css2='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
+      const js2 ='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
+      try{await loadCSS(css1);await loadJS(js1);}catch(e1){try{await loadCSS(css2);await loadJS(js2);}catch(e2){return false;}}
+      return typeof L!=='undefined';
+    }
+  </script>
 </head>
 <body>
   <div class="wrap">
-    <!-- LEFT: Map -->
     <div class="card">
       <div class="titlebar">
         <h1>Target Picker (지도 클릭)</h1>
         <span class="pill"><span id="portDot" class="stat-dot dot-err"></span><span id="portLbl">Disconnected</span></span>
       </div>
-      <div id="map"></div>
+      <div id="map"><div class="mapmsg">지도를 불러오는 중…</div></div>
       <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다. (위성/일반 전환 가능)</div>
     </div>
 
-    <!-- RIGHT: Form + Serial -->
     <div class="card">
       <h1>Auto Drop Module</h1>
       <div id="errbox" class="errbox" role="status" aria-live="polite"></div>
       <div class="form" id="formPanel">
         <div class="label"><label for="lat">목표 좌표:</label></div>
         <div class="pair">
-          <div class="with-unit"><input id="lat" type="number" step="0.000001" placeholder="위도" autocomplete="off" inputmode="decimal"><span class="unit">deg</span></div>
-          <div class="with-unit"><input id="lon" type="number" step="0.000001" placeholder="경도" autocomplete="off" inputmode="decimal"><span class="unit">deg</span></div>
+          <div class="with-unit"><input id="lat" type="text" inputmode="decimal" placeholder="위도" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">deg</span></div>
+          <div class="with-unit"><input id="lon" type="text" inputmode="decimal" placeholder="경도" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">deg</span></div>
         </div>
         <div class="label"><label for="v">속도:</label></div>
-        <div class="with-unit"><input id="v" type="number" step="0.1" placeholder="접근 속도" autocomplete="off" inputmode="decimal"><span class="unit">m/s</span></div>
+        <div class="with-unit"><input id="v" type="text" inputmode="decimal" placeholder="접근 속도" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">m/s</span></div>
         <div class="label"><label for="h">고도:</label></div>
-        <div class="with-unit"><input id="h" type="number" step="0.1" placeholder="투하시 고도" autocomplete="off" inputmode="decimal"><span class="unit">m</span></div>
+        <div class="with-unit"><input id="h" type="text" inputmode="decimal" placeholder="투하시 고도" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">m</span></div>
         <div class="label">PWM MIN/MAX:</div>
         <div class="inline">
-          <div class="with-unit"><input id="pmin" type="number" step="10" placeholder="MIN" autocomplete="off" inputmode="numeric"><span class="unit">&micro;s</span></div>
-          <div class="with-unit"><input id="pmax" type="number" step="10" placeholder="MAX" autocomplete="off" inputmode="numeric"><span class="unit">&micro;s</span></div>
+          <div class="with-unit"><input id="pmin" type="text" inputmode="numeric" placeholder="MIN" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">&micro;s</span></div>
+          <div class="with-unit"><input id="pmax" type="text" inputmode="numeric" placeholder="MAX" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">&micro;s</span></div>
         </div>
         <div class="label"><label for="ons">개폐 딜레이:</label></div>
-        <div class="with-unit"><input id="ons" type="number" step="0.1" placeholder="열림 유지 시간(초)" autocomplete="off" inputmode="decimal"><span class="unit">s</span></div>
+        <div class="with-unit"><input id="ons" type="text" inputmode="decimal" placeholder="열림 유지 시간(초)" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">s</span></div>
         <div class="label"><label for="mass">투하물 중량:</label></div>
-        <div class="with-unit"><input id="mass" type="number" step="0.01" placeholder="옵션" autocomplete="off" inputmode="decimal"><span class="unit">kg</span></div>
+        <div class="with-unit"><input id="mass" type="text" inputmode="decimal" placeholder="옵션" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"><span class="unit">kg</span></div>
       </div>
 
       <div class="btnbar">
@@ -98,264 +101,107 @@
   </div>
 
   <script>
-    // ----- 초기 좌표 -----
-    const INIT = { lat: 37.8765842, lon: 127.1577533 };
+  (function(){
+    // ---- helpers used by whole app ----
+    const logEl = () => document.getElementById('log');
+    const errBox = () => document.getElementById('errbox');
+    function log(msg, color){ const d=document.createElement('div'); if(color)d.style.color=color; d.textContent=msg; logEl().appendChild(d); logEl().scrollTop=logEl().scrollHeight; }
+    function flashError(msg){ const e=errBox(); e.textContent = msg; e.classList.add('show'); clearTimeout(flashError.t); flashError.t = setTimeout(()=>e.classList.remove('show'), 2600); }
 
-    // ---------- Map (위성 + 일반 전환) ----------
-    const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
-    const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
-    const baseSAT = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
-    baseSAT.addTo(map);
-    L.control.layers({ '위성': baseSAT, '일반지도': baseOSM }).addTo(map);
+    async function boot(){
+      // Ensure Leaflet loaded
+      const hasLeaflet = await ensureLeaflet();
+      const mapDiv = document.getElementById('map');
+      if(!hasLeaflet){ mapDiv.innerHTML = '<div class="mapmsg">❗ Leaflet 로드를 실패했습니다. 네트워크 허용 또는 로컬 번들(leaflet.css/js)을 사용하세요.</div>'; return; }
 
-    let marker = null;
-    map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); moveMarker(lat, lng, false); });
-    function moveMarker(lat, lon, center=true){
-      if (marker) marker.setLatLng([lat, lon]); else marker = L.marker([lat, lon]).addTo(map);
-      center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
-    }
-    function setLatLon(lat, lon){ latI.value = lat.toFixed(6); lonI.value = lon.toFixed(6); }
+      mapDiv.innerHTML = '';
+      // ---------- Map ----------
+      const INIT = { lat: 37.8765842, lon: 127.1577533 };
+      const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
+      const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '&copy; OpenStreetMap' });
+      const baseSAT = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: 'Tiles &copy; Esri' });
+      // prefer SAT, but fall back to OSM on error
+      baseSAT.on('tileerror', ()=>{ flashError('위성 타일을 불러오지 못했습니다. 일반지도로 전환합니다.'); if(!map.hasLayer(baseOSM)) baseOSM.addTo(map); });
+      baseOSM.on('tileerror', ()=>{ flashError('OSM 타일 로드 실패. 네트워크 상태를 확인하세요.'); });
+      baseSAT.addTo(map);
+      L.control.layers({ '위성': baseSAT, '일반지도': baseOSM }).addTo(map);
 
-    // ---------- UI helpers ----------
-    const logEl = document.getElementById('log');
-    const errBox = document.getElementById('errbox');
-    function log(msg, color){ const d=document.createElement('div'); if(color)d.style.color=color; d.textContent=msg; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
-    function flashError(msg){ errBox.textContent = msg; errBox.classList.add('show'); clearTimeout(flashError.t); flashError.t = setTimeout(()=>errBox.classList.remove('show'), 2600); }
-    function setPortStatus(connected){
-      portDot.className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
-      portLbl.textContent = connected ? 'Connected' : 'Disconnected';
-      btnDisconnect.disabled = !connected;
-    }
-    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
-    function enableInputs(){
-      [latI, lonI, vI, hI, pminI, pmaxI, onsI, massI].forEach(el => { el.disabled = false; el.readOnly = false; });
-    }
+      let marker = null; 
+      function moveMarker(lat, lon, center=true){ if (marker) marker.setLatLng([lat, lon]); else marker = L.marker([lat, lon]).addTo(map); center ? map.setView([lat, lon]) : map.panTo([lat, lon]); }
+      function setLatLon(lat, lon){ latI.value = lat.toFixed(6); lonI.value = lon.toFixed(6); }
+      map.on('click', (e)=>{ const { lat, lng } = e.latlng; setLatLon(lat, lng); moveMarker(lat, lng, false); });
 
-    // ---------- Form refs ----------
-    const latI = document.getElementById('lat');
-    const lonI = document.getElementById('lon');
-    const vI   = document.getElementById('v');
-    const hI   = document.getElementById('h');
-    const pminI= document.getElementById('pmin');
-    const pmaxI= document.getElementById('pmax');
-    const onsI = document.getElementById('ons');
-    const massI= document.getElementById('mass');
-    const portDot = document.getElementById('portDot');
-    const portLbl = document.getElementById('portLbl');
-    const btnDisconnect = document.getElementById('btnDisconnect');
+      // ---------- Form/Serial (same logic as hardened build) ----------
+      const latI = document.getElementById('lat');
+      const lonI = document.getElementById('lon');
+      const vI   = document.getElementById('v');
+      const hI   = document.getElementById('h');
+      const pminI= document.getElementById('pmin');
+      const pmaxI= document.getElementById('pmax');
+      const onsI = document.getElementById('ons');
+      const massI= document.getElementById('mass');
+      const portDot = document.getElementById('portDot');
+      const portLbl = document.getElementById('portLbl');
+      const btnDisconnect = document.getElementById('btnDisconnect');
+      const btnSend = document.getElementById('btnSend');
+      const formPanel = document.getElementById('formPanel');
 
-    // === 검증/포커스 유틸 ===
-    const requiredInputs = [latI, lonI, vI, hI, pminI, pmaxI, onsI];
+      function setPortStatus(connected){ portDot.className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err'); portLbl.textContent = connected ? 'Connected' : 'Disconnected'; btnDisconnect.disabled = !connected; }
+      function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+      function enableInputs(){ [latI, lonI, vI, hI, pminI, pmaxI, onsI, massI].forEach(el => { el.disabled = false; el.readOnly = false; }); }
 
-    function clearInvalidMarks(){
-      requiredInputs.forEach(el => el.removeAttribute('aria-invalid'));
-      massI.removeAttribute('aria-invalid');
-    }
+      function toFloat(el){ const s=(el.value||'').replace(',', '.').trim(); const n=Number(s); return Number.isFinite(n)?n:NaN; }
+      function toInt(el){ const s=(el.value||'').replace(/[^\d-]/g,'').trim(); const n=parseInt(s,10); return Number.isFinite(n)?n:NaN; }
+      function sanitizeDecimal(e){ const v=e.target.value; e.target.value = v.replace(/[^\d+\-.,eE]/g,''); }
+      function sanitizeInteger(e){ const v=e.target.value; e.target.value = v.replace(/[^\d\-]/g,''); }
+      [latI, lonI, vI, hI, onsI, massI].forEach(el=>el.addEventListener('input', sanitizeDecimal));
+      [pminI, pmaxI].forEach(el=>el.addEventListener('input', sanitizeInteger));
 
-    function markInvalid(el){ el.setAttribute('aria-invalid', 'true'); }
+      const requiredInputs = [latI, lonI, vI, hI, pminI, pmaxI, onsI];
+      function clearInvalidMarks(){ requiredInputs.forEach(el => el.removeAttribute('aria-invalid')); massI.removeAttribute('aria-invalid'); }
+      function markInvalid(el){ el.setAttribute('aria-invalid', 'true'); }
+      function firstInvalidInput(){ for (const el of requiredInputs){ if ((el.value ?? '').toString().trim() === '') return el; } const lat = toFloat(latI), lon = toFloat(lonI); if (!(Number.isFinite(lat) && lat >= -90 && lat <= 90)) return latI; if (!(Number.isFinite(lon) && lon >= -180 && lon <= 180)) return lonI; for (const el of [vI, hI, pminI, pmaxI, onsI]){ const n = (el===pminI||el===pmaxI)?toInt(el):toFloat(el); if (!Number.isFinite(n)) return el; } return null; }
+      ;[...requiredInputs, massI].forEach(el => { el.addEventListener('input', () => el.removeAttribute('aria-invalid')); el.addEventListener('change', () => el.removeAttribute('aria-invalid')); });
 
-    function focusInto(el){
-      el.disabled = false; el.readOnly = false; // 혹시 모를 상태 해제
-      let tries = 0;
-      const tryFocus = () => {
-        el.focus({ preventScroll: true });
-        if (document.activeElement !== el && tries < 3){ tries++; requestAnimationFrame(tryFocus); return; }
-        el.scrollIntoView({ block: 'center', behavior: 'smooth' });
-      };
-      requestAnimationFrame(tryFocus);
-    }
+      function isValidLatLon(lat, lon){ return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180; }
+      function updateMapFromInputs(center=true){ const lat = toFloat(latI), lon = toFloat(lonI); if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center); }
+      function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
+      const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 300);
+      latI.addEventListener('input', debouncedUpdate);
+      lonI.addEventListener('input', debouncedUpdate);
+      latI.addEventListener('change', ()=>updateMapFromInputs(true));
+      lonI.addEventListener('change', ()=>updateMapFromInputs(true));
+      [latI, lonI].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') updateMapFromInputs(true); }));
 
-    function firstInvalidInput(){
-      // 1) 비어있는지
-      for (const el of requiredInputs){
-        if ((el.value ?? '').toString().trim() === '') return el;
-      }
-      // 2) 위경도 범위
-      const lat = parseFloat(latI.value), lon = parseFloat(lonI.value);
-      if (!(Number.isFinite(lat) && lat >= -90 && lat <= 90)) return latI;
-      if (!(Number.isFinite(lon) && lon >= -180 && lon <= 180)) return lonI;
-      // 3) 숫자 유효성
-      for (const el of [vI, hI, pminI, pmaxI, onsI]){
-        const n = Number(el.value);
-        if (!Number.isFinite(n)) return el;
-      }
-      return null;
-    }
+      // --- Web Serial minimal (unchanged logic) ---
+      let port = null, reader = null, writer = null;
+      const encoder = new TextEncoder();
+      let closing = false;
+      function canSend(){ if (closing) { log('> [WARN] 해제 중입니다. 잠시만요.', '#ffd479'); return false; } if (!writer) { log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return false; } return true; }
+      async function connectSerial(){ if(!('serial' in navigator)){ flashError('Chrome/Edge 또는 WebView2(https/localhost)에서 실행하세요.'); return; } if (writer){ log('> [INFO] 이미 연결되어 있습니다.', '#9be5a3'); return; } try{ await safeTearDown(); let p=null; try{ p=await navigator.serial.requestPort({ filters:[{usbVendorId:0x2341},{usbVendorId:0x1A86},{usbVendorId:0x10C4},{usbVendorId:0x0403}]}); }catch{ const ports=await navigator.serial.getPorts(); p=ports[0]||null;} if(!p){ flashError('포트를 선택하지 않았습니다.'); return; } await p.open({ baudRate:115200 }); writer=p.writable.getWriter(); reader=p.readable.getReader(); port=p; setPortStatus(true); enableInputs(); log('> [INFO] 시리얼 연결됨','#9be5a3'); readLoop(); }catch(err){ console.error(err); flashError('연결 실패: '+err.message); await safeTearDown(); setPortStatus(false);} }
+      async function disconnectSerial(){ closing=true; try{ if(reader){ try{ await reader.cancel(); }catch{} try{ reader.releaseLock(); }catch{} reader=null;} if(writer){ try{ await writer.close(); }catch{} try{ writer.releaseLock(); }catch{} writer=null;} if(port){ try{ await port.close(); }catch{} } port=null; setPortStatus(false); log('> [INFO] 연결 해제','#ffd479'); await sleep(150);} finally{ closing=false; } }
+      async function safeTearDown(){ try{ if(reader){ await reader.cancel(); } }catch{} try{ if(reader){ reader.releaseLock(); } }catch{} reader=null; try{ if(writer){ await writer.close(); } }catch{} try{ if(writer){ writer.releaseLock(); } }catch{} writer=null; try{ if(port){ await port.close(); } }catch{} port=null; }
+      async function readLoop(){ while(reader){ try{ const {value,done}=await reader.read(); if(done) break; if(value){ const text=new TextDecoder().decode(value); text.split(/\r?\n/).forEach(l=>l&&log(l)); } }catch{ break; } } }
+      async function sendLine(s){ if(!canSend()) return; try{ const data=encoder.encode(s.trim()+'\n'); await writer.write(data); log('> '+s,'#9bb1d6'); }catch(err){ flashError('전송 실패: '+err.message); } }
+      navigator.serial.addEventListener('disconnect', async ()=>{ log('> [WARN] 장치 연결 해제 감지','#ffd479'); await safeTearDown(); setPortStatus(false); });
+      navigator.serial.addEventListener('connect', ()=>{ log('> [INFO] 장치 연결 감지(권한 있음). "시리얼 연결"로 재연결하세요.','#9be5a3'); });
 
-    // 입력 중이면 에러 표시 제거
-    [...requiredInputs, massI].forEach(el => {
-      el.addEventListener('input', () => el.removeAttribute('aria-invalid'));
-      el.addEventListener('change', () => el.removeAttribute('aria-invalid'));
-    });
+      function buildParamLine(){ clearInvalidMarks(); const bad=firstInvalidInput(); if(bad){ markInvalid(bad); flashError('필수 항목을 모두 올바르게 입력하세요.'); return null; } const lat=toFloat(latI),lon=toFloat(lonI); const v=toFloat(vI),h=toFloat(hI); const pmin=toInt(pminI),pmax=toInt(pmaxI); const ons=toFloat(onsI); const massStr=(massI.value||'').trim(); const onms=Math.max(100, Math.round(ons*1000)); const latStr=lat.toFixed(6), lonStr=lon.toFixed(6); if(!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`; const mass=toFloat(massI); if(!Number.isFinite(mass)){ markInvalid(massI); flashError('투하물 중량 값을 확인하세요.'); return null; } return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`; }
+      function resetForm(){ clearInvalidMarks(); enableInputs(); setLatLon(INIT.lat, INIT.lon); map.setView([INIT.lat, INIT.lon]); vI.value = hI.value = pminI.value = pmaxI.value = onsI.value = massI.value = ''; log('> [UI] 폼을 초기화했습니다. (시리얼 연결 유지)', '#9bb1d6'); }
 
-    // ---------- 입력 좌표 → 지도 동기화 ----------
-    function isValidLatLon(lat, lon){ return Number.isFinite(lat) && Number.isFinite(lon) && lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180; }
-    function updateMapFromInputs(center=true){
-      const lat = parseFloat(latI.value), lon = parseFloat(lonI.value);
-      if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center);
-    }
-    function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
-    const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 300);
-    latI.addEventListener('input', debouncedUpdate);
-    lonI.addEventListener('input', debouncedUpdate);
-    latI.addEventListener('change', ()=>updateMapFromInputs(true));
-    lonI.addEventListener('change', ()=>updateMapFromInputs(true));
-    [latI, lonI].forEach(el => el.addEventListener('keydown', e => { if (e.key === 'Enter') updateMapFromInputs(true); }));
+      document.getElementById('btnConnect').addEventListener('click', connectSerial);
+      document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
+      document.getElementById('btnSend').addEventListener('click', async ()=>{ const line=buildParamLine(); if(line) await sendLine(line); });
+      document.getElementById('btnReset').addEventListener('click', resetForm);
 
-    // ---------- Web Serial ----------
-    let port = null, reader = null, writer = null;
-    const encoder = new TextEncoder();
-    let closing = false;
-
-    function canSend(){
-      if (closing) { log('> [WARN] 해제 중입니다. 잠시만요.', '#ffd479'); return false; }
-      if (!writer) { log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return false; }
-      return true;
+      // 초기 표시
+      setPortStatus(false); enableInputs();
+      moveMarker(INIT.lat, INIT.lon, true); setLatLon(INIT.lat, INIT.lon);
+      setTimeout(()=> map.invalidateSize(true), 100);
     }
 
-    async function connectSerial(){
-      if(!('serial' in navigator)){
-        flashError('Chrome/Edge에서 https 또는 localhost로 실행하세요.');
-        return;
-      }
-      if (writer){ log('> [INFO] 이미 연결되어 있습니다.', '#9be5a3'); return; }
-      try{
-        await safeTearDown();
-        let p = null;
-        try { p = await navigator.serial.requestPort({ filters: [
-          { usbVendorId: 0x2341 }, { usbVendorId: 0x1A86 }, { usbVendorId: 0x10C4 }, { usbVendorId: 0x0403 }
-        ]}); } catch {
-          const ports = await navigator.serial.getPorts();
-          p = ports[0] || null;
-        }
-        if (!p){ flashError('포트를 선택하지 않았습니다.'); return; }
-
-        await p.open({ baudRate: 115200 });
-        writer = p.writable.getWriter();
-        reader = p.readable.getReader();
-        port = p;
-
-        setPortStatus(true);
-        enableInputs();
-        log('> [INFO] 시리얼 연결됨', '#9be5a3');
-        readLoop();
-      }catch(err){
-        console.error(err);
-        flashError('연결 실패: '+err.message);
-        await safeTearDown();
-        setPortStatus(false);
-      }
-    }
-
-    async function disconnectSerial(){
-      closing = true;
-      try{
-        if (reader){ try{ await reader.cancel(); }catch{} try{ reader.releaseLock(); }catch{} reader = null; }
-        if (writer){ try{ await writer.close(); }catch{} try{ writer.releaseLock(); }catch{} writer = null; }
-        if (port){ try{ await port.close(); }catch{} }
-        port = null;
-        setPortStatus(false);
-        log('> [INFO] 연결 해제', '#ffd479');
-        await sleep(150);
-      }finally{ closing = false; }
-    }
-
-    async function safeTearDown(){
-      try{ if(reader){ await reader.cancel(); } }catch{}
-      try{ if(reader){ reader.releaseLock(); } }catch{} reader = null;
-      try{ if(writer){ await writer.close(); } }catch{}
-      try{ if(writer){ writer.releaseLock(); } }catch{} writer = null;
-      try{ if(port){ await port.close(); } }catch{} port = null;
-    }
-
-    async function readLoop(){
-      while(reader){
-        try{
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (value){
-            const text = new TextDecoder().decode(value);
-            text.split(/
-?
-/).forEach(l=>l&&log(l));
-          }
-        }catch{ break; }
-      }
-    }
-
-    async function sendLine(s){
-      if (!canSend()) return;
-      try{
-        const data = encoder.encode(s.trim()+'
-');
-        await writer.write(data);
-        log('> '+s, '#9bb1d6');
-      }catch(err){ flashError('전송 실패: '+err.message); }
-    }
-
-    navigator.serial.addEventListener('disconnect', async ()=>{
-      log('> [WARN] 장치 연결 해제 감지', '#ffd479');
-      await safeTearDown();
-      setPortStatus(false);
-    });
-    navigator.serial.addEventListener('connect', ()=>{
-      log('> [INFO] 장치 연결 감지(권한 있음). “시리얼 연결”로 재연결하세요.', '#9be5a3');
-    });
-
-    // ---------- Compose parameter line (on_s → on_ms) ----------
-    function buildParamLine(){
-      clearInvalidMarks();
-
-      const lat  = parseFloat(latI.value), lon  = parseFloat(lonI.value);
-      const v    = parseFloat(vI.value),   h    = parseFloat(hI.value);
-      const pmin = parseInt(pminI.value, 10),   pmax = parseInt(pmaxI.value, 10);
-      const ons  = parseFloat(onsI.value);
-      const massStr = (massI.value ?? '').trim();
-
-      // 누락/오류 처리 (알럿 대신 비차단 에러 박스 + 포커싱)
-      const bad = firstInvalidInput();
-      if (bad){
-        markInvalid(bad);
-        flashError('필수 항목을 모두 올바르게 입력하세요.');
-        return null;
-      }
-
-      const onms = Math.max(100, Math.round(ons * 1000));
-      const latStr = lat.toFixed(6), lonStr = lon.toFixed(6);
-
-      if (!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
-      const mass = parseFloat(massStr);
-      if (Number.isNaN(mass)){
-        markInvalid(massI);
-        flashError('투하물 중량 값을 확인하세요.');
-        return null;
-      }
-      return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
-    }
-
-    // ---------- Reset (UI only; never touches serial) ----------
-    function resetForm(){
-      clearInvalidMarks();
-      enableInputs();
-      setLatLon(INIT.lat, INIT.lon);
-      moveMarker(INIT.lat, INIT.lon, true);
-      vI.value = hI.value = pminI.value = pmaxI.value = onsI.value = massI.value = '';
-      log('> [UI] 폼을 초기화했습니다. (시리얼 연결 유지)', '#9bb1d6');
-    }
-
-    // ---------- Buttons ----------
-    document.getElementById('btnConnect').addEventListener('click', connectSerial);
-    document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
-    document.getElementById('btnSend').addEventListener('click', async ()=>{
-      const line = buildParamLine(); if (line) await sendLine(line);
-    });
-    document.getElementById('btnReset').addEventListener('click', resetForm);
-
-    // 초기 표시
-    moveMarker(INIT.lat, INIT.lon, true);
-    setLatLon(INIT.lat, INIT.lon);
-    setPortStatus(false);
-    enableInputs();
+    window.addEventListener('load', boot);
+  })();
   </script>
 </body>
 </html>
