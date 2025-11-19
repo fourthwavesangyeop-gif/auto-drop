@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (Satellite + Reset Fix)</title>
+  <title>Auto Drop Module — Web UI (Hold + Delay + Reset Fix)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <!-- Leaflet -->
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -51,7 +51,10 @@
     <div class="card">
       <div class="titlebar">
         <h1>Target Picker (지도 클릭)</h1>
-        <span class="pill"><span id="portDot" class="stat-dot dot-err"></span><span id="portLbl">Disconnected</span></span>
+        <span class="pill">
+          <span id="portDot" class="stat-dot dot-err"></span>
+          <span id="portLbl">Disconnected</span>
+        </span>
       </div>
       <div id="map"></div>
       <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다. (위성/일반 전환 가능)</div>
@@ -79,8 +82,19 @@
           <div class="with-unit"><input id="pmax" type="number" step="10" placeholder="MAX"><span class="unit">&micro;s</span></div>
         </div>
 
+        <!-- 🔥 여기부터: 유지 시간 + 딜레이 2칸 -->
+        <div class="label">개폐 유지 시간:</div>
+        <div class="with-unit">
+          <input id="hold" type="number" step="0.1" placeholder="열림 유지 시간(초)">
+          <span class="unit">s</span>
+        </div>
+
         <div class="label">개폐 딜레이:</div>
-        <div class="with-unit"><input id="ons" type="number" step="0.1" placeholder="열림 유지 시간(초)"><span class="unit">s</span></div>
+        <div class="with-unit">
+          <input id="delay" type="number" step="0.1" placeholder="열기 전 딜레이(초)">
+          <span class="unit">s</span>
+        </div>
+        <!-- 🔥 여기까지 -->
 
         <div class="label">투하물 중량:</div>
         <div class="with-unit"><input id="mass" type="number" step="0.01" placeholder="옵션"><span class="unit">kg</span></div>
@@ -94,7 +108,7 @@
       </div>
 
       <div class="hr"></div>
-      <div class="hint">※ 개폐 딜레이는 <b>초(s)</b>로 입력하며, 전송 시 <b>ms</b>로 변환됩니다.</div>
+      <div class="hint">※ 개폐 <b>유지 시간</b>과 <b>딜레이</b>는 모두 <b>초(s)</b> 단위로 입력되며, 그대로 아두이노로 전송됩니다.</div>
       <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
       <div id="log" class="log"></div>
     </div>
@@ -125,23 +139,38 @@
 
     let marker = null;
     map.on('click', (e) => { const { lat, lng } = e.latlng; setLatLon(lat, lng); moveMarker(lat, lng, false); });
+
     function moveMarker(lat, lon, center=true){
-      if (marker) marker.setLatLng([lat, lon]); else marker = L.marker([lat, lon]).addTo(map);
+      if (marker) marker.setLatLng([lat, lon]);
+      else marker = L.marker([lat, lon]).addTo(map);
       center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
     }
+
     function setLatLon(lat, lon){
-      latI.value = lat.toFixed(6);
-      lonI.value = lon.toFixed(6);
+      latI.value = lat.toFixed(8);
+      lonI.value = lon.toFixed(8);
     }
 
     // ---------- UI helpers ----------
     const logEl = document.getElementById('log');
-    function log(msg, color){ const d=document.createElement('div'); if(color)d.style.color=color; d.textContent=msg; logEl.appendChild(d); logEl.scrollTop=logEl.scrollHeight; }
+    function log(msg, color){
+      const d=document.createElement('div');
+      if(color)d.style.color=color;
+      d.textContent=msg;
+      logEl.appendChild(d);
+      logEl.scrollTop=logEl.scrollHeight;
+    }
+
+    const portDot = document.getElementById('portDot');
+    const portLbl = document.getElementById('portLbl');
+    const btnDisconnect = document.getElementById('btnDisconnect');
+
     function setPortStatus(connected){
       portDot.className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
       portLbl.textContent = connected ? 'Connected' : 'Disconnected';
       btnDisconnect.disabled = !connected;
     }
+
     function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
 
     // ---------- Form refs ----------
@@ -151,22 +180,24 @@
     const hI   = document.getElementById('h');
     const pminI= document.getElementById('pmin');
     const pmaxI= document.getElementById('pmax');
-    const onsI = document.getElementById('ons');
+
+    const holdI = document.getElementById('hold');   // 개폐 유지 시간 (초)
+    const delayI= document.getElementById('delay');  // 개폐 딜레이 (초)
+
     const massI= document.getElementById('mass');
-    const portDot = document.getElementById('portDot');
-    const portLbl = document.getElementById('portLbl');
-    const btnDisconnect = document.getElementById('btnDisconnect');
 
     // ---------- 입력 좌표 → 지도 동기화 ----------
     function isValidLatLon(lat, lon){
       return Number.isFinite(lat) && Number.isFinite(lon) &&
              lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
     }
+
     function updateMapFromInputs(center=true){
       const lat = parseFloat(latI.value);
       const lon = parseFloat(lonI.value);
       if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center);
     }
+
     function debounce(fn, ms){ let t; return (...args)=>{ clearTimeout(t); t=setTimeout(()=>fn(...args), ms); }; }
     const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 400);
 
@@ -247,7 +278,6 @@
     }
 
     async function tryAutoReconnect(){
-      // 권한 있는 포트가 있으면 자동 재연결
       try{
         const ports = await navigator.serial.getPorts();
         if (!ports.length) return false;
@@ -300,7 +330,7 @@
       log('> [INFO] 장치 연결 감지(권한 있음). “시리얼 연결”로 재연결하세요.', '#9be5a3');
     });
 
-    // ---------- Compose parameter line (on_s → on_ms) ----------
+    // ---------- 파라미터 라인 생성 (holdSec / delaySec 모두 초 단위) ----------
     function buildParamLine(){
       const lat  = parseFloat(latI.value);
       const lon  = parseFloat(lonI.value);
@@ -308,20 +338,33 @@
       const h    = parseFloat(hI.value);
       const pmin = parseInt(pminI.value, 10);
       const pmax = parseInt(pmaxI.value, 10);
-      const ons  = parseFloat(onsI.value); // 초(s)
+
+      const holdSec  = parseFloat(holdI.value);   // 개폐 유지 시간 (초)
+      const delaySec = parseFloat(delayI.value);  // 개폐 딜레이 (초)
+
       const massStr = massI.value.trim();
 
-      if ([lat, lon, v, h, pmin, pmax, ons].some(x => Number.isNaN(x))){
-        alert('필수 항목을 모두 입력하세요.'); return null;
+      if ([lat, lon, v, h, pmin, pmax, holdSec, delaySec].some(x => Number.isNaN(x))){
+        alert('필수 항목을 모두 입력하세요.');
+        return null;
       }
 
-      const onms = Math.max(100, Math.round(ons * 1000));
-      const latStr = lat.toFixed(6), lonStr = lon.toFixed(6);
+      const latStr = lat.toFixed(6);
+      const lonStr = lon.toFixed(6);
 
-      if (!massStr.length) return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms}`;
+      // 초 단위 그대로 전송 (아두이노에서 atof로 받아서 초로 사용)
+      const holdStr  = holdSec.toString();
+      const delayStr = delaySec.toString();
+
+      if (!massStr.length)
+        return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${holdStr} ${delayStr}`;
+
       const mass = parseFloat(massStr);
-      if (Number.isNaN(mass)){ alert('투하물 중량 값을 확인하세요.'); return null; }
-      return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${onms} ${mass}`;
+      if (Number.isNaN(mass)){
+        alert('투하물 중량 값을 확인하세요.');
+        return null;
+      }
+      return `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${holdStr} ${delayStr} ${mass}`;
     }
 
     // ---------- Reset (robust) ----------
@@ -331,7 +374,13 @@
       moveMarker(INIT.lat, INIT.lon, true);
 
       // 나머지 입력 초기화
-      vI.value = hI.value = pminI.value = pmaxI.value = onsI.value = massI.value = '';
+      vI.value = '';
+      hI.value = '';
+      pminI.value = '';
+      pmaxI.value = '';
+      holdI.value = '';
+      delayI.value = '';
+      massI.value = '';
 
       log('> [UI] 폼을 초기화했습니다.', '#9bb1d6');
 
