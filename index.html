@@ -76,12 +76,13 @@
       <div class="form">
         <div class="label">목표 좌표:</div>
         <div class="pair">
+          <!-- ✅ 여기: number → text 로 변경 -->
           <div class="with-unit">
-            <input id="lat" type="number" step="any" placeholder="위도">
+            <input id="lat" type="text" placeholder="위도">
             <span class="unit">deg</span>
           </div>
           <div class="with-unit">
-            <input id="lon" type="number" step="any" placeholder="경도">
+            <input id="lon" type="text" placeholder="경도">
             <span class="unit">deg</span>
           </div>
         </div>
@@ -177,10 +178,10 @@
       center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
     }
 
+    // ✅ 여기: Number(...).toPrecision(10) 제거 → 문자열 그대로
     function setLatLon(lat, lon){
-      // 고정 소수 대신 precision으로 7자리 이상 유지
-      latI.value = Number(lat).toPrecision(10);
-      lonI.value = Number(lon).toPrecision(10);
+      latI.value = String(lat);
+      lonI.value = String(lon);
     }
 
     // ---------- UI helpers ----------
