@@ -28,7 +28,7 @@
     .form{display:grid;grid-template-columns:auto 1fr;grid-row-gap:12px;grid-column-gap:12px;align-items:center}
     .label{color:#d9e6ff}
     .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .inline{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .inline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
 
     .with-unit{position:relative}
     .with-unit input{
@@ -74,9 +74,9 @@
       <h1>Auto Drop Module</h1>
 
       <div class="form">
+
         <div class="label">목표 좌표:</div>
         <div class="pair">
-          <!-- ✅ 여기: number → text 로 변경 -->
           <div class="with-unit">
             <input id="lat" type="text" placeholder="위도">
             <span class="unit">deg</span>
@@ -100,7 +100,7 @@
         </div>
 
         <div class="label">PWM MIN/MAX:</div>
-        <div class="inline">
+        <div class="pair">
           <div class="with-unit">
             <input id="pmin" type="number" step="10" placeholder="MIN">
             <span class="unit">µs</span>
@@ -111,7 +111,7 @@
           </div>
         </div>
 
-        <div class="label">개폐 유지 시간:</div>
+        <div class="label">개폐 유지시간:</div>
         <div class="with-unit">
           <input id="hold" type="number" step="0.01" placeholder="열림 유지 시간(초)">
           <span class="unit">s</span>
@@ -128,6 +128,19 @@
           <input id="mass" type="number" step="0.01" placeholder="옵션">
           <span class="unit">kg</span>
         </div>
+
+        <!-- ★★★★★ Winch 6-Slot PWM 입력추가 (옵션 B — 한 줄 6칸) ★★★★★ -->
+        <div class="label">투하 위치 PWM (1~6):</div>
+        <div class="inline">
+          <div class="with-unit"><input id="pwm1" type="number" step="1" placeholder="1"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm2" type="number" step="1" placeholder="2"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm3" type="number" step="1" placeholder="3"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm4" type="number" step="1" placeholder="4"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm5" type="number" step="1" placeholder="5"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm6" type="number" step="1" placeholder="6"><span class="unit">µs</span></div>
+        </div>
+        <!-- ★★★★★ END ★★★★★ -->
+
       </div>
 
       <div class="btnbar">
@@ -138,7 +151,7 @@
       </div>
 
       <div class="hr"></div>
-      <div class="hint">※ 좌표는 입력값 그대로(반올림 없이) 전송됩니다. 개폐 유지/딜레이는 <b>초</b> 단위입니다.</div>
+      <div class="hint">※ 좌표는 입력값 그대로 전송됩니다.</div>
       <div class="hint">아래는 아두이노가 보내는 시리얼 로그입니다.</div>
       <div id="log" class="log"></div>
     </div>
@@ -146,306 +159,224 @@
   </div>
 
   <script>
-    // ----- 초기 좌표 -----
     const INIT = { lat: 37.8765842, lon: 127.1577533 };
 
-    // ---------- Map with Satellite ----------
-    const map = L.map('map', { zoomControl: true }).setView([INIT.lat, INIT.lon], 16);
-
-    const baseOSM = L.tileLayer(
-      'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-      { maxZoom: 19, attribution: '&copy; OpenStreetMap' }
-    );
-
-    const baseSAT = L.tileLayer(
-      'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-      { maxZoom: 19, attribution: 'Tiles &copy; Esri' }
-    );
-
+    const map = L.map('map', { zoomControl:true }).setView([INIT.lat, INIT.lon], 16);
+    const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
+    const baseSAT = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
     baseSAT.addTo(map);
-    L.control.layers({ '위성': baseSAT, '일반지도': baseOSM }).addTo(map);
+    L.control.layers({ '위성':baseSAT, '일반지도':baseOSM }).addTo(map);
 
-    let marker = null;
-    map.on('click', (e) => {
-      const { lat, lng } = e.latlng;
-      setLatLon(lat, lng);
-      moveMarker(lat, lng, false);
+    let marker=null;
+    map.on('click',e=>{
+      setLatLon(e.latlng.lat,e.latlng.lng);
+      moveMarker(e.latlng.lat,e.latlng.lng,false);
     });
 
-    function moveMarker(lat, lon, center=true){
-      if (marker) marker.setLatLng([lat, lon]);
-      else marker = L.marker([lat, lon]).addTo(map);
-      center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
+    function moveMarker(lat,lon,center=true){
+      if(marker) marker.setLatLng([lat,lon]);
+      else marker=L.marker([lat,lon]).addTo(map);
+      center ? map.setView([lat,lon]) : map.panTo([lat,lon]);
     }
 
-    // ✅ 여기: Number(...).toPrecision(10) 제거 → 문자열 그대로
-    function setLatLon(lat, lon){
-      latI.value = String(lat);
-      lonI.value = String(lon);
+    function setLatLon(lat,lon){
+      latI.value=String(lat);
+      lonI.value=String(lon);
     }
 
-    // ---------- UI helpers ----------
-    const logEl = document.getElementById('log');
-    function log(msg, color){
+    const logEl=document.getElementById('log');
+    function log(msg,color){
       const d=document.createElement('div');
-      if(color) d.style.color=color;
+      if(color)d.style.color=color;
       d.textContent=msg;
       logEl.appendChild(d);
       logEl.scrollTop=logEl.scrollHeight;
     }
 
-    const portDot = document.getElementById('portDot');
-    const portLbl = document.getElementById('portLbl');
-    const btnDisconnect = document.getElementById('btnDisconnect');
+    const portDot=document.getElementById('portDot');
+    const portLbl=document.getElementById('portLbl');
+    const btnDisconnect=document.getElementById('btnDisconnect');
 
-    function setPortStatus(connected){
-      portDot.className = 'stat-dot ' + (connected ? 'dot-ok' : 'dot-err');
-      portLbl.textContent = connected ? 'Connected' : 'Disconnected';
-      btnDisconnect.disabled = !connected;
+    function setPortStatus(on){
+      portDot.className='stat-dot '+(on?'dot-ok':'dot-err');
+      portLbl.textContent=on?'Connected':'Disconnected';
+      btnDisconnect.disabled=!on;
     }
 
-    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+    function sleep(ms){ return new Promise(r=>setTimeout(r,ms)); }
 
-    // ---------- Form refs ----------
-    const latI   = document.getElementById('lat');
-    const lonI   = document.getElementById('lon');
-    const vI     = document.getElementById('v');
-    const hI     = document.getElementById('h');
-    const pminI  = document.getElementById('pmin');
-    const pmaxI  = document.getElementById('pmax');
-    const holdI  = document.getElementById('hold');
-    const delayI = document.getElementById('delay');
-    const massI  = document.getElementById('mass');
+    const latI=document.getElementById('lat');
+    const lonI=document.getElementById('lon');
+    const vI=document.getElementById('v');
+    const hI=document.getElementById('h');
+    const pminI=document.getElementById('pmin');
+    const pmaxI=document.getElementById('pmax');
+    const holdI=document.getElementById('hold');
+    const delayI=document.getElementById('delay');
+    const massI=document.getElementById('mass');
 
-    // ---------- 좌표 입력 → 지도 동기화 ----------
-    function isValidLatLon(lat, lon){
-      return Number.isFinite(lat) && Number.isFinite(lon) &&
-             lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    const pwm1=document.getElementById('pwm1');
+    const pwm2=document.getElementById('pwm2');
+    const pwm3=document.getElementById('pwm3');
+    const pwm4=document.getElementById('pwm4');
+    const pwm5=document.getElementById('pwm5');
+    const pwm6=document.getElementById('pwm6');
+
+    function isValidLatLon(lat,lon){
+      return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180;
     }
 
     function updateMapFromInputs(center=true){
-      const lat = parseFloat(latI.value);
-      const lon = parseFloat(lonI.value);
-      if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center);
+      const lat=parseFloat(latI.value);
+      const lon=parseFloat(lonI.value);
+      if(isValidLatLon(lat,lon)) moveMarker(lat,lon,center);
     }
 
-    function debounce(fn, ms){
-      let t;
-      return (...args)=>{
-        clearTimeout(t);
-        t=setTimeout(()=>fn(...args), ms);
-      };
+    function debounce(fn,ms){
+      let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); };
     }
+    const debouncedUpdate=debounce(()=>updateMapFromInputs(false),400);
 
-    const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 400);
-
-    latI.addEventListener('input', debouncedUpdate);
-    lonI.addEventListener('input', debouncedUpdate);
-    latI.addEventListener('change', ()=>updateMapFromInputs(true));
-    lonI.addEventListener('change', ()=>updateMapFromInputs(true));
-    [latI, lonI].forEach(el => el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') updateMapFromInputs(true);
+    latI.addEventListener('input',debouncedUpdate);
+    lonI.addEventListener('input',debouncedUpdate);
+    latI.addEventListener('change',()=>updateMapFromInputs(true));
+    lonI.addEventListener('change',()=>updateMapFromInputs(true));
+    [latI,lonI].forEach(el=>el.addEventListener('keydown',e=>{
+      if(e.key==='Enter') updateMapFromInputs(true);
     }));
 
-    // ---------- Web Serial ----------
-    let port = null;
-    let reader = null;
-    let writer = null;
-    const encoder = new TextEncoder();
-    let closing = false;
+    let port=null,reader=null,writer=null,closing=false;
+    const encoder=new TextEncoder();
 
-    function portOpen() {
-      return port && port.readable && port.writable && writer && reader;
-    }
+    function portOpen(){ return port&&writer&&reader; }
 
     function canSend(){
-      if (closing) { log('> [WARN] 해제 중입니다.', '#ffd479'); return false; }
-      if (!writer) { log('> [ERR] 포트가 연결되어 있지 않습니다.', '#ff8b8b'); return false; }
+      if(closing){ log('> [WARN] 해제 중', '#ffd479'); return false; }
+      if(!writer){ log('> [ERR] 연결 안됨','#ff8b8b'); return false; }
       return true;
     }
 
     async function safeTearDown(){
-      try{ if(reader){ await reader.cancel(); } }catch{}
-      try{ if(reader){ reader.releaseLock(); } }catch{}
-      reader = null;
-      try{ if(writer){ await writer.close(); } }catch{}
-      try{ if(writer){ writer.releaseLock(); } }catch{}
-      writer = null;
-      try{ if(port){ await port.close(); } }catch{}
-      port = null;
+      try{ if(reader){ await reader.cancel(); reader.releaseLock(); }}catch{}
+      reader=null;
+      try{ if(writer){ await writer.close(); writer.releaseLock(); }}catch{}
+      writer=null;
+      try{ if(port){ await port.close(); }}catch{}
+      port=null;
     }
 
     async function connectSerial(){
-      if(!('serial' in navigator)){
-        alert('Chrome/Edge에서 https 또는 localhost로 실행하세요.');
-        return;
-      }
+      if(!('serial' in navigator)){ alert("Chrome 필요"); return; }
       try{
-        const ports = await navigator.serial.getPorts();
-        port = ports[0] || await navigator.serial.requestPort();
-        await port.open({ baudRate: 115200 });
-
-        writer = port.writable.getWriter();
-        reader = port.readable.getReader();
+        const ports=await navigator.serial.getPorts();
+        port=ports[0]||await navigator.serial.requestPort();
+        await port.open({baudRate:115200});
+        writer=port.writable.getWriter();
+        reader=port.readable.getReader();
         setPortStatus(true);
-        log('> [INFO] 시리얼 연결됨', '#9be5a3');
+        log('> 연결됨','#9be5a3');
         readLoop();
-      }catch(err){
-        console.error(err);
-        log('> [ERR] 연결 실패: '+err.message, '#ff8b8b');
+      }catch(e){
+        log('> ERR: '+e,'#ff8b8b');
         await safeTearDown();
         setPortStatus(false);
       }
     }
 
     async function disconnectSerial(){
-      closing = true;
+      closing=true;
       try{
-        if (reader){
-          try{ await reader.cancel(); }catch{}
-          try{ reader.releaseLock(); }catch{}
-          reader = null;
-        }
-        if (writer){
-          try{ await writer.close(); }catch{}
-          try{ writer.releaseLock(); }catch{}
-          writer = null;
-        }
-        if (port){ try{ await port.close(); }catch{} }
-        port = null;
-
+        if(reader){ await reader.cancel(); reader.releaseLock(); reader=null; }
+        if(writer){ await writer.close(); writer.releaseLock(); writer=null; }
+        if(port){ await port.close(); }
+        port=null;
         setPortStatus(false);
-        log('> [INFO] 연결 해제', '#ffd479');
-        await sleep(250);
-      }finally{
-        closing = false;
-      }
-    }
-
-    async function tryAutoReconnect(){
-      try{
-        const ports = await navigator.serial.getPorts();
-        if (!ports.length) return false;
-        port = ports[0];
-        await port.open({ baudRate: 115200 });
-        writer = port.writable.getWriter();
-        reader = port.readable.getReader();
-        setPortStatus(true);
-        readLoop();
-        log('> [INFO] 리셋 후 자동 재연결 완료', '#9be5a3');
-        return true;
-      }catch(e){
-        log('> [WARN] 자동 재연결 실패: '+e.message, '#ffd479');
-        await safeTearDown();
-        setPortStatus(false);
-        return false;
-      }
+        log('> 연결 해제','#ffd479');
+      }finally{ closing=false; }
     }
 
     async function readLoop(){
       while(reader){
         try{
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (value){
-            const text = new TextDecoder().decode(value);
-            text.split(/\r?\n/).forEach(l=>l&&log(l));
+          const {value,done}=await reader.read();
+          if(done) break;
+          if(value){
+            new TextDecoder().decode(value).split(/\r?\n/).forEach(l=>l&&log(l));
           }
         }catch{ break; }
       }
     }
 
     async function sendLine(s){
-      if (!canSend()) return;
+      if(!canSend()) return;
       try{
-        const data = encoder.encode(s.trim()+'\n');
-        await writer.write(data);
-        log('> '+s, '#9bb1d6');
-      }catch(err){
-        log('> [ERR] 전송 실패: '+err.message, '#ff8b8b');
+        await writer.write(encoder.encode(s+"\n"));
+        log("> "+s,"#9bb1d6");
+      }catch(e){
+        log("> ERR: "+e,"#ff8b8b");
       }
     }
 
-    navigator.serial?.addEventListener('disconnect', async ()=>{
-      log('> [WARN] 장치 연결 해제 감지', '#ffd479');
+    navigator.serial?.addEventListener('disconnect',async()=>{
+      log('> 장치 해제 감지','#ffc857');
       await safeTearDown();
       setPortStatus(false);
     });
 
-    navigator.serial?.addEventListener('connect', ()=>{
-      log('> [INFO] 장치 연결 감지. “시리얼 연결” 버튼으로 재연결하세요.', '#9be5a3');
-    });
-
-    // ---------- 파라미터 라인 구성 ----------
     function buildParamLine(){
-      const latStr = latI.value.trim();
-      const lonStr = lonI.value.trim();
+      const latStr=latI.value.trim();
+      const lonStr=lonI.value.trim();
+      const v=parseFloat(vI.value);
+      const h=parseFloat(hI.value);
+      const pmin=parseFloat(pminI.value);
+      const pmax=parseFloat(pmaxI.value);
+      const hold=parseFloat(holdI.value);
+      const delay=parseFloat(delayI.value);
+      const massStr=massI.value.trim();
 
-      const v     = parseFloat(vI.value);
-      const h     = parseFloat(hI.value);
-      const pmin  = parseInt(pminI.value, 10);
-      const pmax  = parseInt(pmaxI.value, 10);
-      const hold  = parseFloat(holdI.value);   // 초
-      const delay = parseFloat(delayI.value);  // 초
-      const massStr = massI.value.trim();
+      const p1=parseFloat(pwm1.value);
+      const p2=parseFloat(pwm2.value);
+      const p3=parseFloat(pwm3.value);
+      const p4=parseFloat(pwm4.value);
+      const p5=parseFloat(pwm5.value);
+      const p6=parseFloat(pwm6.value);
 
-      if (!latStr.length || !lonStr.length){
-        alert('좌표를 입력하세요.');
-        return null;
-      }
-      if ([v,h,pmin,pmax,hold,delay].some(x => Number.isNaN(x))){
-        alert('필수 항목을 모두 입력하세요.');
-        return null;
+      if(!latStr||!lonStr){ alert("좌표 입력"); return null; }
+      if([v,h,pmin,pmax,hold,delay,p1,p2,p3,p4,p5,p6].some(x=>Number.isNaN(x))){
+        alert("필수값 입력"); return null;
       }
 
-      let line = `${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${hold} ${delay}`;
-      if (massStr.length){
-        const mass = parseFloat(massStr);
-        if (Number.isNaN(mass)){ alert('투하물 중량 값을 확인하세요.'); return null; }
-        line += ` ${mass}`;
-      }
+      let line=`${latStr} ${lonStr} ${v} ${h} ${pmin} ${pmax} ${hold} ${delay}`;
+      if(massStr.length){
+        const m=parseFloat(massStr);
+        if(Number.isNaN(m)){ alert("중량 오류"); return null; }
+        line+=` ${m}`;
+      }else line+=" 0";
+
+      line+=` ${p1} ${p2} ${p3} ${p4} ${p5} ${p6}`;
       return line;
     }
 
-    // ---------- Reset ----------
     async function resetForm(){
-      // UI 초기화
-      setLatLon(INIT.lat, INIT.lon);
-      moveMarker(INIT.lat, INIT.lon, true);
-
-      vI.value = hI.value = pminI.value = pmaxI.value = holdI.value = delayI.value = massI.value = '';
-
-      log('> [UI] 폼을 초기화했습니다.', '#9bb1d6');
-
-      // 장치 clear
-      if (writer){
-        const doClear = confirm('장치도 초기화(clear) 명령을 보낼까요?');
-        if (doClear){
-          try { await sendLine('clear'); } catch {}
-          await sleep(200);
-          if (!portOpen()){
-            await safeTearDown();
-            await tryAutoReconnect();
-          }
-        }
-      }
+      setLatLon(INIT.lat,INIT.lon);
+      moveMarker(INIT.lat,INIT.lon,true);
+      vI.value=hI.value=pminI.value=pmaxI.value=holdI.value=delayI.value=massI.value='';
+      pwm1.value=pwm2.value=pwm3.value=pwm4.value=pwm5.value=pwm6.value='';
+      log("> UI Reset","#9bb1d6");
     }
 
-    // ---------- Buttons ----------
-    document.getElementById('btnConnect').addEventListener('click', connectSerial);
-    document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
-
-    document.getElementById('btnSend').addEventListener('click', async ()=>{
-      const line = buildParamLine();
-      if (line) await sendLine(line);
+    document.getElementById('btnConnect').addEventListener('click',connectSerial);
+    document.getElementById('btnDisconnect').addEventListener('click',disconnectSerial);
+    document.getElementById('btnSend').addEventListener('click',()=>{
+      const line=buildParamLine();
+      if(line) sendLine(line);
     });
+    document.getElementById('btnReset').addEventListener('click',resetForm);
 
-    document.getElementById('btnReset').addEventListener('click', resetForm);
-
-    // 초기 상태
-    moveMarker(INIT.lat, INIT.lon, true);
-    setLatLon(INIT.lat, INIT.lon);
+    moveMarker(INIT.lat,INIT.lon,true);
+    setLatLon(INIT.lat,INIT.lon);
     setPortStatus(false);
+
   </script>
 </body>
 </html>
