@@ -13,15 +13,6 @@
 :root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
-input[type=number]::-webkit-inner-spin-button,
-input[type=number]::-webkit-outer-spin-button {
-  -webkit-appearance: none;
-  margin: 0;
-}
-
-input[type=number] {
-  -moz-appearance: textfield; /* Firefox */
-}
 
 /* ★★★ 오른쪽 패널을 확 넓힌 버전 ★★★ */
 .wrap{
@@ -77,6 +68,15 @@ h1{font-size:18px;margin:0 0 10px}
     .hr{height:1px;background:var(--line);margin:12px 0}
     .log{height:210px;background:#0a0f18;border:1px solid var(--line);border-radius:10px;padding:10px;overflow:auto;font-family:ui-monospace,Consolas,monospace;color:#d8e2ff}
     .hint{font-size:12px;color:#9bb1d6;margin-top:6px}
+  input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type=number] {
+  -moz-appearance: textfield; /* Firefox */
+}
   </style>
 </head>
 <body>
