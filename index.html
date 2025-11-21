@@ -25,7 +25,16 @@
     .dot-ok{background:var(--ok)} 
     .dot-err{background:var(--err)}
 
-    .form{display:grid;grid-template-columns:auto 4fr;grid-row-gap:12px;grid-column-gap:12px;align-items:center}
+    /* ---------------------- ★ 수정된 부분 (옵션 A) ★ ---------------------- */
+    .form{
+      display:grid;
+      grid-template-columns:auto 1.7fr;
+      grid-row-gap:12px;
+      grid-column-gap:12px;
+      align-items:center
+    }
+    /* ---------------------------------------------------------------------- */
+
     .label{color:#d9e6ff}
     .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
     .inline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
@@ -74,7 +83,7 @@
       <h1>Auto Drop Module</h1>
 
       <div class="form">
-
+        
         <div class="label">목표 좌표:</div>
         <div class="pair">
           <div class="with-unit">
@@ -129,7 +138,7 @@
           <span class="unit">kg</span>
         </div>
 
-        <!-- ★★★★★ Winch 6-Slot PWM 입력추가 (옵션 B — 한 줄 6칸) ★★★★★ -->
+        <!-- PWM 6개 (One-line 6개) -->
         <div class="label">투하 위치 PWM (1~6):</div>
         <div class="inline">
           <div class="with-unit"><input id="pwm1" type="number" step="1" placeholder="1"><span class="unit">µs</span></div>
@@ -139,7 +148,6 @@
           <div class="with-unit"><input id="pwm5" type="number" step="1" placeholder="5"><span class="unit">µs</span></div>
           <div class="with-unit"><input id="pwm6" type="number" step="1" placeholder="6"><span class="unit">µs</span></div>
         </div>
-        <!-- ★★★★★ END ★★★★★ -->
 
       </div>
 
@@ -376,7 +384,6 @@
     moveMarker(INIT.lat,INIT.lon,true);
     setLatLon(INIT.lat,INIT.lon);
     setPortStatus(false);
-
   </script>
 </body>
 </html>
