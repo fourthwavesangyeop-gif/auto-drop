@@ -10,20 +10,31 @@
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 
   <style>
-    :root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
-    *{box-sizing:border-box}
-    body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
-    .wrap{display:grid;grid-template-columns:1.25fr 0.9fr;gap:14px;max-width:1200px;margin:18px auto;padding:0 12px}
-    .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.28);padding:14px}
-    #map{height:560px;border-radius:12px;overflow:hidden}
+:root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
 
-    h1{font-size:18px;margin:0 0 10px}
-    .pill{padding:6px 10px;border-radius:999px;background:#0f1726;border:1px solid var(--line)}
-    .titlebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 
-    .stat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
-    .dot-ok{background:var(--ok)} 
-    .dot-err{background:var(--err)}
+/* ★★★ 오른쪽 패널을 확 넓힌 버전 ★★★ */
+.wrap{
+display:grid;
+grid-template-columns:1fr 1.35fr; /* 오른쪽 패널 확장 */
+gap:14px;max-width:1500px;margin:18px auto;padding:0 12px
+}
+
+
+.card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.28);padding:14px}
+#map{height:560px;border-radius:12px;overflow:hidden}
+
+
+h1{font-size:18px;margin:0 0 10px}
+.pill{padding:6px 10px;border-radius:999px;background:#0f1726;border:1px solid var(--line)}
+.titlebar{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+
+
+.stat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px;vertical-align:middle}
+.dot-ok{background:var(--ok)}
+.dot-err{background:var(--err)}
 
     /* ---------------------- ★ 수정된 부분 (옵션 A) ★ ---------------------- */
     .form{
