@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (6-Slot PWM, No MIN/MAX)</title>
+  <title>Auto Drop Module — Web UI (7-PWM / 6-Slot Version)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Leaflet -->
@@ -13,16 +13,7 @@
     :root { --bg:#0b0f14; --card:#101722; --ink:#eaf1ff; --muted:#9bb1d6; --line:#1f2b3d; --accent:#7aa2ff; --ok:#35c96e; --warn:#ffc857; --err:#ff6b6b; }
     *{box-sizing:border-box}
     body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,Segoe UI,Roboto,Apple SD Gothic Neo,Noto Sans KR}
-
-    .wrap{
-      display:grid;
-      grid-template-columns:1fr 1.35fr; /* 오른쪽 폼 넓게 */
-      gap:14px;
-      max-width:1500px;
-      margin:18px auto;
-      padding:0 12px;
-    }
-
+    .wrap{display:grid;grid-template-columns:1.25fr 0.9fr;gap:14px;max-width:1200px;margin:18px auto;padding:0 12px}
     .card{background:var(--card);border:1px solid var(--line);border-radius:16px;box-shadow:0 4px 18px rgba(0,0,0,.28);padding:14px}
     #map{height:560px;border-radius:12px;overflow:hidden}
 
@@ -34,45 +25,19 @@
     .dot-ok{background:var(--ok)} 
     .dot-err{background:var(--err)}
 
-    .form{
-      display:grid;
-      grid-template-columns:auto 2.1fr; /* 라벨 : 입력칸 비율 */
-      grid-row-gap:12px;
-      grid-column-gap:12px;
-      align-items:center;
-    }
-
+    .form{display:grid;grid-template-columns:auto 1fr;grid-row-gap:12px;grid-column-gap:12px;align-items:center}
     .label{color:#d9e6ff}
     .pair{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-    .inline{display:grid;grid-template-columns:repeat(6,1fr);gap:8px}
+    .inline7{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
 
     .with-unit{position:relative}
     .with-unit input{
-      width:100%;
-      padding:8px 56px 8px 10px;
-      border:1px solid #2a3a56;
-      border-radius:8px;
-      background:#0e1520;
-      color:var(--ink);
-      outline:none;
+      width:100%;padding:8px 56px 8px 10px;border:1px solid #2a3a56;border-radius:8px;background:#0e1520;color:var(--ink);outline:none
     }
     .unit{
-      position:absolute;
-      right:10px;
-      top:50%;
-      transform:translateY(-50%);
-      color:var(--muted);
-      font-size:12px;
-      pointer-events:none;
+      position:absolute;right:10px;top:50%;transform:translateY(-50%);
+      color:var(--muted);font-size:12px;pointer-events:none
     }
-
-    /* 숫자 입력 화살표 제거 */
-    input[type=number]::-webkit-inner-spin-button,
-    input[type=number]::-webkit-outer-spin-button{
-      -webkit-appearance:none;
-      margin:0;
-    }
-    input[type=number]{ -moz-appearance:textfield; }
 
     .btnbar{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
     button{background:#152238;color:var(--ink);border:1px solid #2a3a56;border-radius:10px;padding:9px 12px;cursor:pointer}
@@ -99,44 +64,70 @@
         </span>
       </div>
       <div id="map"></div>
-      <div class="hint">지도를 클릭하거나, 오른쪽 좌표를 입력하면 지도/마커가 이동합니다. (위성/일반 전환 가능)</div>
+      <div class="hint">
+        지도를 클릭하거나 오른쪽에 좌표를 입력하면 마커가 이동합니다.
+      </div>
     </div>
 
-    <!-- RIGHT: Form + Serial -->
+    <!-- RIGHT: Form -->
     <div class="card">
-      <h1>Auto Drop Module (6-Slot PWM)</h1>
+      <h1>Auto Drop Module (7-PWM / 6-Slot)</h1>
 
       <div class="form">
+
         <div class="label">목표 좌표:</div>
         <div class="pair">
-          <div class="with-unit"><input id="lat" type="text" placeholder="위도"><span class="unit">deg</span></div>
-          <div class="with-unit"><input id="lon" type="text" placeholder="경도"><span class="unit">deg</span></div>
+          <div class="with-unit">
+            <input id="lat" type="text" placeholder="위도">
+            <span class="unit">deg</span>
+          </div>
+          <div class="with-unit">
+            <input id="lon" type="text" placeholder="경도">
+            <span class="unit">deg</span>
+          </div>
         </div>
 
-        <div class="label">속도:</div>
-        <div class="with-unit"><input id="v" type="number" step="0.1" placeholder="접근 속도"><span class="unit">m/s</span></div>
-
-        <div class="label">고도:</div>
-        <div class="with-unit"><input id="h" type="number" step="0.1" placeholder="투하시 고도"><span class="unit">m</span></div>
-
-        <div class="label">개폐 유지 시간:</div>
-        <div class="with-unit"><input id="hold" type="number" step="0.01" placeholder="서보 동작 후 대기 시간"><span class="unit">s</span></div>
-
-        <div class="label">개폐 딜레이:</div>
-        <div class="with-unit"><input id="delay" type="number" step="0.01" placeholder="RAD 기준 +후 / -전"><span class="unit">s</span></div>
-
-        <div class="label">투하물 중량:</div>
-        <div class="with-unit"><input id="mass" type="number" step="0.01" placeholder="옵션"><span class="unit">kg</span></div>
-
-        <div class="label">슬롯 PWM (1~6):</div>
-        <div class="inline">
-          <div class="with-unit"><input id="pwm1" type="number" placeholder="PWM1"><span class="unit">µs</span></div>
-          <div class="with-unit"><input id="pwm2" type="number" placeholder="PWM2"><span class="unit">µs</span></div>
-          <div class="with-unit"><input id="pwm3" type="number" placeholder="PWM3"><span class="unit">µs</span></div>
-          <div class="with-unit"><input id="pwm4" type="number" placeholder="PWM4"><span class="unit">µs</span></div>
-          <div class="with-unit"><input id="pwm5" type="number" placeholder="PWM5"><span class="unit">µs</span></div>
-          <div class="with-unit"><input id="pwm6" type="number" placeholder="PWM6"><span class="unit">µs</span></div>
+        <div class="label">접근 속도:</div>
+        <div class="with-unit">
+          <input id="v" type="number" step="0.1" placeholder="예: 10">
+          <span class="unit">m/s</span>
         </div>
+
+        <div class="label">투하시 고도:</div>
+        <div class="with-unit">
+          <input id="h" type="number" step="0.1" placeholder="예: 20">
+          <span class="unit">m</span>
+        </div>
+
+        <div class="label">서보 유지시간:</div>
+        <div class="with-unit">
+          <input id="hold" type="number" step="0.01" placeholder="예: 0.5">
+          <span class="unit">s</span>
+        </div>
+
+        <div class="label">드롭 딜레이:</div>
+        <div class="with-unit">
+          <input id="delay" type="number" step="0.01" placeholder="예: 0">
+          <span class="unit">s</span>
+        </div>
+
+        <div class="label">투하물 중량(옵션):</div>
+        <div class="with-unit">
+          <input id="mass" type="number" step="0.01" placeholder="비우면 자동 0.757">
+          <span class="unit">kg</span>
+        </div>
+
+        <div class="label">PWM0~PWM6 (중립 + 6슬롯):</div>
+        <div class="inline7">
+          <div class="with-unit"><input id="pwm0" type="number" step="1" placeholder="0"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm1" type="number" step="1" placeholder="1"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm2" type="number" step="1" placeholder="2"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm3" type="number" step="1" placeholder="3"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm4" type="number" step="1" placeholder="4"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm5" type="number" step="1" placeholder="5"><span class="unit">µs</span></div>
+          <div class="with-unit"><input id="pwm6" type="number" step="1" placeholder="6"><span class="unit">µs</span></div>
+        </div>
+
       </div>
 
       <div class="btnbar">
@@ -147,176 +138,143 @@
       </div>
 
       <div class="hr"></div>
-      <div class="hint">포맷: <code>lat lon v h hold_s delay_s [mass_kg] pwm1 pwm2 pwm3 pwm4 pwm5 pwm6</code></div>
-      <div class="hint">좌표는 입력된 문자열 그대로 전송되고, hold/딜레이는 초(s) 단위로 전송됩니다.</div>
+      <div class="hint">아래는 아두이노 시리얼 출력 로그입니다.</div>
       <div id="log" class="log"></div>
     </div>
 
   </div>
 
   <script>
+    /********************************
+     * 지도 초기화
+     ********************************/
     const INIT = { lat: 37.8765842, lon: 127.1577533 };
 
-    // Map
     const map = L.map('map', { zoomControl:true }).setView([INIT.lat, INIT.lon], 16);
+    const baseSAT = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19}).addTo(map);
     const baseOSM = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19});
-    const baseSAT = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxZoom:19});
-    baseSAT.addTo(map);
     L.control.layers({ '위성':baseSAT, '일반지도':baseOSM }).addTo(map);
 
-    let marker = null;
-    map.on('click', e => {
-      const { lat, lng } = e.latlng;
-      setLatLon(lat, lng);
-      moveMarker(lat, lng, false);
+    let marker=null;
+    map.on('click',e=>{
+      setLatLon(e.latlng.lat,e.latlng.lng);
+      moveMarker(e.latlng.lat,e.latlng.lng,false);
     });
 
-    function moveMarker(lat, lon, center=true){
-      if (marker) marker.setLatLng([lat, lon]);
-      else marker = L.marker([lat, lon]).addTo(map);
-      center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
+    function moveMarker(lat,lon,center=true){
+      if(marker) marker.setLatLng([lat,lon]);
+      else marker=L.marker([lat,lon]).addTo(map);
+      center ? map.setView([lat,lon]) : map.panTo([lat,lon]);
     }
 
-    const latI = document.getElementById('lat');
-    const lonI = document.getElementById('lon');
-    const vI   = document.getElementById('v');
-    const hI   = document.getElementById('h');
-    const holdI= document.getElementById('hold');
-    const delayI=document.getElementById('delay');
-    const massI= document.getElementById('mass');
-    const pwm1I= document.getElementById('pwm1');
-    const pwm2I= document.getElementById('pwm2');
-    const pwm3I= document.getElementById('pwm3');
-    const pwm4I= document.getElementById('pwm4');
-    const pwm5I= document.getElementById('pwm5');
-    const pwm6I= document.getElementById('pwm6');
+    const latI=document.getElementById('lat');
+    const lonI=document.getElementById('lon');
 
-    const logEl = document.getElementById('log');
-    const portDot = document.getElementById('portDot');
-    const portLbl = document.getElementById('portLbl');
-    const btnDisconnect = document.getElementById('btnDisconnect');
-
-    function log(msg, color){
-      const d = document.createElement('div');
-      if (color) d.style.color = color;
-      d.textContent = msg;
-      logEl.appendChild(d);
-      logEl.scrollTop = logEl.scrollHeight;
+    function setLatLon(lat,lon){
+      latI.value=String(lat);
+      lonI.value=String(lon);
     }
 
-    function setLatLon(lat, lon){
-      latI.value = String(lat);
-      lonI.value = String(lon);
-    }
-
-    function isValidLatLon(lat, lon){
-      return Number.isFinite(lat) && Number.isFinite(lon) &&
-             lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180;
+    function isValidLatLon(lat,lon){
+      return Number.isFinite(lat)&&Number.isFinite(lon)&&lat>=-90&&lat<=90&&lon>=-180&&lon<=180;
     }
 
     function updateMapFromInputs(center=true){
-      const lat = parseFloat(latI.value);
-      const lon = parseFloat(lonI.value);
-      if (isValidLatLon(lat, lon)) moveMarker(lat, lon, center);
+      const lat=parseFloat(latI.value);
+      const lon=parseFloat(lonI.value);
+      if(isValidLatLon(lat,lon)) moveMarker(lat,lon,center);
     }
 
-    function debounce(fn, ms){
-      let t;
-      return (...args)=>{
-        clearTimeout(t);
-        t = setTimeout(()=>fn(...args), ms);
-      };
+    function debounce(fn,ms){
+      let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); };
     }
-    const debouncedUpdate = debounce(()=>updateMapFromInputs(false), 400);
+    const debouncedUpdate=debounce(()=>updateMapFromInputs(false),400);
 
-    latI.addEventListener('input', debouncedUpdate);
-    lonI.addEventListener('input', debouncedUpdate);
-    latI.addEventListener('change', ()=>updateMapFromInputs(true));
-    lonI.addEventListener('change', ()=>updateMapFromInputs(true));
-    [latI, lonI].forEach(el => el.addEventListener('keydown', e => {
-      if (e.key === 'Enter') updateMapFromInputs(true);
+    latI.addEventListener('input',debouncedUpdate);
+    lonI.addEventListener('input',debouncedUpdate);
+    [latI,lonI].forEach(el=>el.addEventListener('keydown',e=>{
+      if(e.key==='Enter') updateMapFromInputs(true);
     }));
 
-    function setPortStatus(on){
-      portDot.className = 'stat-dot ' + (on ? 'dot-ok' : 'dot-err');
-      portLbl.textContent = on ? 'Connected' : 'Disconnected';
-      btnDisconnect.disabled = !on;
+    moveMarker(INIT.lat,INIT.lon,true);
+    setLatLon(INIT.lat,INIT.lon);
+
+    /********************************
+     * 시리얼 연결
+     ********************************/
+    const logEl=document.getElementById('log');
+    function log(msg,color){
+      const d=document.createElement('div');
+      if(color)d.style.color=color;
+      d.textContent=msg;
+      logEl.appendChild(d);
+      logEl.scrollTop=logEl.scrollHeight;
     }
 
-    function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+    const portDot=document.getElementById('portDot');
+    const portLbl=document.getElementById('portLbl');
+    const btnDisconnect=document.getElementById('btnDisconnect');
 
-    let port = null, reader = null, writer = null, closing = false;
-    const encoder = new TextEncoder();
+    function setPortStatus(on){
+      portDot.className='stat-dot '+(on?'dot-ok':'dot-err');
+      portLbl.textContent=on?'Connected':'Disconnected';
+      btnDisconnect.disabled=!on;
+    }
+
+    let port=null,reader=null,writer=null,closing=false;
+    const encoder=new TextEncoder();
 
     function canSend(){
-      if (closing){ log('> [WARN] 해제 중', '#ffd479'); return false; }
-      if (!writer){ log('> [ERR] 포트 연결 안됨', '#ff8b8b'); return false; }
+      if(closing){ log('[WARN] 해제 중','#ffd479'); return false; }
+      if(!writer){ log('[ERR] 연결 안됨','#ff8b8b'); return false; }
       return true;
     }
 
     async function safeTearDown(){
-      try{ if(reader){ await reader.cancel(); reader.releaseLock(); } }catch{}
-      reader = null;
-      try{ if(writer){ await writer.close(); writer.releaseLock(); } }catch{}
-      writer = null;
-      try{ if(port){ await port.close(); } }catch{}
-      port = null;
+      try{ if(reader){ await reader.cancel(); reader.releaseLock(); }}catch{}
+      reader=null;
+      try{ if(writer){ await writer.close(); writer.releaseLock(); }}catch{}
+      writer=null;
+      try{ if(port){ await port.close(); }}catch{}
+      port=null;
     }
 
     async function connectSerial(){
-      if (!('serial' in navigator)){
-        alert('Chrome/Edge + https 환경에서 사용하세요.');
-        return;
-      }
+      if(!('serial' in navigator)){ alert("Chrome 필요"); return; }
       try{
-        const ports = await navigator.serial.getPorts();
-        port = ports[0] || await navigator.serial.requestPort();
-        await port.open({ baudRate:115200 });
-        writer = port.writable.getWriter();
-        reader = port.readable.getReader();
+        port=await navigator.serial.requestPort();
+        await port.open({baudRate:115200});
+        writer=port.writable.getWriter();
+        reader=port.readable.getReader();
         setPortStatus(true);
-        log('> [INFO] 시리얼 연결됨', '#9be5a3');
+        log('[INFO] 연결됨','#9be5a3');
         readLoop();
       }catch(e){
-        log('> [ERR] 연결 실패: '+e.message, '#ff8b8b');
+        log('[ERR] '+e,'#ff8b8b');
         await safeTearDown();
         setPortStatus(false);
       }
     }
 
     async function disconnectSerial(){
-      closing = true;
+      closing=true;
       try{
-        if(reader){
-          try{ await reader.cancel(); }catch{}
-          try{ reader.releaseLock(); }catch{}
-          reader = null;
-        }
-        if(writer){
-          try{ await writer.close(); }catch{}
-          try{ writer.releaseLock(); }catch{}
-          writer = null;
-        }
-        if(port){
-          try{ await port.close(); }catch{}
-          port = null;
-        }
+        if(reader){ await reader.cancel(); reader.releaseLock(); reader=null; }
+        if(writer){ await writer.close(); writer.releaseLock(); writer=null; }
+        if(port){ await port.close(); }
+        port=null;
         setPortStatus(false);
-        log('> [INFO] 연결 해제', '#ffd479');
-        await sleep(200);
-      }finally{
-        closing = false;
-      }
+        log('[INFO] 연결 해제','#ffd479');
+      }finally{ closing=false; }
     }
 
     async function readLoop(){
       while(reader){
         try{
-          const { value, done } = await reader.read();
-          if (done) break;
-          if (value){
-            const text = new TextDecoder().decode(value);
-            text.split(/\r?\n/).forEach(l=>l&&log(l));
+          const {value,done}=await reader.read();
+          if(done) break;
+          if(value){
+            new TextDecoder().decode(value).split(/\r?\n/).forEach(l=>l&&log(l));
           }
         }catch{
           break;
@@ -325,73 +283,102 @@
     }
 
     async function sendLine(s){
-      if (!canSend()) return;
+      if(!canSend()) return;
       try{
-        await writer.write(encoder.encode(s.trim() + '\n'));
-        log('> ' + s, '#9bb1d6');
+        await writer.write(encoder.encode(s+"\n"));
+        log("→ "+s,"#9bb1d6");
       }catch(e){
-        log('> [ERR] 전송 실패: '+e.message, '#ff8b8b');
+        log("[ERR] "+e,"#ff8b8b");
       }
     }
 
+    navigator.serial?.addEventListener('disconnect',async()=>{
+      log('[WARN] 장치 분리됨','#ffc857');
+      await safeTearDown();
+      setPortStatus(false);
+    });
+
+    /********************************
+     * 파라미터 구성 (새 Arduino 코드와 100% 일치)
+     ********************************/
+    const vI=document.getElementById('v');
+    const hI=document.getElementById('h');
+    const holdI=document.getElementById('hold');
+    const delayI=document.getElementById('delay');
+    const massI=document.getElementById('mass');
+
+    const pwm0=document.getElementById('pwm0');
+    const pwm1=document.getElementById('pwm1');
+    const pwm2=document.getElementById('pwm2');
+    const pwm3=document.getElementById('pwm3');
+    const pwm4=document.getElementById('pwm4');
+    const pwm5=document.getElementById('pwm5');
+    const pwm6=document.getElementById('pwm6');
+
     function buildParamLine(){
-      const latStr = latI.value.trim();
-      const lonStr = lonI.value.trim();
-      const v     = parseFloat(vI.value);
-      const h     = parseFloat(hI.value);
-      const hold  = parseFloat(holdI.value);
-      const delay = parseFloat(delayI.value);
-      const massStr = massI.value.trim();
+      const latStr=latI.value.trim();
+      const lonStr=lonI.value.trim();
 
-      const p1 = parseFloat(pwm1I.value);
-      const p2 = parseFloat(pwm2I.value);
-      const p3 = parseFloat(pwm3I.value);
-      const p4 = parseFloat(pwm4I.value);
-      const p5 = parseFloat(pwm5I.value);
-      const p6 = parseFloat(pwm6I.value);
+      const v=parseFloat(vI.value);
+      const h=parseFloat(hI.value);
+      const hold=parseFloat(holdI.value);
+      const delay=parseFloat(delayI.value);
 
-      if (!latStr || !lonStr){
-        alert('좌표를 입력하세요.'); return null;
+      let massStr=massI.value.trim();
+
+      const p0=parseFloat(pwm0.value);
+      const p1v=parseFloat(pwm1.value);
+      const p2v=parseFloat(pwm2.value);
+      const p3v=parseFloat(pwm3.value);
+      const p4v=parseFloat(pwm4.value);
+      const p5v=parseFloat(pwm5.value);
+      const p6v=parseFloat(pwm6.value);
+
+      if(!latStr||!lonStr){
+        alert("좌표를 입력하세요");
+        return null;
       }
-      if ([v,h,hold,delay,p1,p2,p3,p4,p5,p6].some(x=>Number.isNaN(x))){
-        alert('필수 항목을 모두 입력하세요.'); return null;
+      if([v,h,hold,delay,p0,p1v,p2v,p3v,p4v,p5v,p6v].some(x=>Number.isNaN(x))){
+        alert("필수 입력 누락");
+        return null;
       }
 
+      // ===== mass 생략 시 Arduino에서 자동으로 0.757kg 사용 =====
       let line = `${latStr} ${lonStr} ${v} ${h} ${hold} ${delay}`;
-      if (massStr.length){
-        const m = parseFloat(massStr);
-        if (Number.isNaN(m)){ alert('중량 값을 확인하세요.'); return null; }
+      if(massStr.length){
+        const m=parseFloat(massStr);
+        if(Number.isNaN(m)){ alert("중량 값 오류"); return null; }
         line += ` ${m}`;
       } else {
-        line += ` 0`;
+        line += ` -1`;   // -1 → Arduino에서 기본 0.757kg 자동 적용
       }
-      line += ` ${p1} ${p2} ${p3} ${p4} ${p5} ${p6}`;
+
+      // PWM0 → PWM6
+      line += ` ${p0} ${p1v} ${p2v} ${p3v} ${p4v} ${p5v} ${p6v}`;
       return line;
     }
 
     async function resetForm(){
-      setLatLon(INIT.lat, INIT.lon);
-      moveMarker(INIT.lat, INIT.lon, true);
+      setLatLon(INIT.lat,INIT.lon);
+      moveMarker(INIT.lat,INIT.lon,true);
       vI.value = hI.value = holdI.value = delayI.value = massI.value = '';
-      pwm1I.value = pwm2I.value = pwm3I.value = pwm4I.value = pwm5I.value = pwm6I.value = '';
-      log('> [UI] 폼 리셋', '#9bb1d6');
-      if (writer){
-        const doClear = confirm('장치에도 clear 명령을 보낼까요?');
-        if (doClear) await sendLine('clear');
-      }
+      pwm0.value = pwm1.value = pwm2.value = pwm3.value = pwm4.value = pwm5.value = pwm6.value = '';
+      log('[INFO] UI Reset','#9bb1d6');
     }
 
-    document.getElementById('btnConnect').addEventListener('click', connectSerial);
-    document.getElementById('btnDisconnect').addEventListener('click', disconnectSerial);
-    document.getElementById('btnSend').addEventListener('click', ()=>{
+    /********************************
+     * 버튼 동작 연결
+     ********************************/
+    document.getElementById('btnConnect').addEventListener('click',connectSerial);
+    document.getElementById('btnDisconnect').addEventListener('click',disconnectSerial);
+    document.getElementById('btnSend').addEventListener('click',()=>{
       const line = buildParamLine();
-      if (line) sendLine(line);
+      if(line) sendLine(line);
     });
-    document.getElementById('btnReset').addEventListener('click', resetForm);
+    document.getElementById('btnReset').addEventListener('click',resetForm);
 
-    moveMarker(INIT.lat, INIT.lon, true);
-    setLatLon(INIT.lat, INIT.lon);
     setPortStatus(false);
+
   </script>
 </body>
 </html>
