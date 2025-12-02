@@ -255,22 +255,29 @@ function updateRadiusLabel(lat, lon, r){
     map.removeLayer(radiusLabel);
     radiusLabel=null;
   }
-  if(!r || r<=0) return;
+  if(!r || r <= 0) return;
 
   radiusLabel = L.marker([lat, lon], {
     icon: L.divIcon({
       className: "radius-label",
-      html: `<div style="
-        background:rgba(0,0,0,0.65);
-        color:#7aa2ff;
-        padding:4px 8px;
-        border-radius:6px;
-        font-size:13px;
-        font-weight:600;
-        border:1px solid #2a3a56;
-      ">${r.toFixed(1)} m</div>`,
-      iconSize:[10,10],
-      iconAnchor:[-15,-15]
+      html: `
+        <div style="
+          display:inline-block;
+          background: rgba(0,0,0,0.75);
+          color:#7aa2ff;
+          padding:4px 8px;
+          border-radius:6px;
+          font-size:13px;
+          font-weight:600;
+          border:1px solid #2a3a56;
+          white-space:nowrap;
+          transform: translate(-50%, -10px);
+        ">
+          ${r.toFixed(1)} m
+        </div>
+      `,
+      iconSize: [0, 0],
+      iconAnchor: [0, 30]   // ★ 마커 머리 위로 정확히 위치
     })
   }).addTo(map);
 }
@@ -304,8 +311,8 @@ const pwmI=[
 ];
 
 function setLatLon(lat,lon){
-  latI.value=String(lat);
-  lonI.value=String(lon);
+  latI.value = lat.toFixed(7);
+  lonI.value = lon.toFixed(7);
 }
 
 /* ========================================================
