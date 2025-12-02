@@ -309,7 +309,7 @@
     </div>
 
     <div class="hr"></div>
-    <div class="hint">시리얼 모니터터</div>
+    <div class="hint">시리얼 모니터</div>
     <div id="log" class="log"></div>
 
   </div>
@@ -461,7 +461,7 @@ function updateRadiusCircleFromInputs(){
 }
 
 [vI, hI, offsetI, massI].forEach(i => i.addEventListener("input", updateRadiusCircleFromInputs));
-latI.addEventListener("change", () => {
+latI.addEventListener("input", () => {
   const lat = parseFloat(latI.value);
   const lon = parseFloat(lonI.value);
   if (!isNaN(lat) && !isNaN(lon)) {
@@ -470,7 +470,7 @@ latI.addEventListener("change", () => {
   updateRadiusCircleFromInputs();
 });
 
-lonI.addEventListener("change", () => {
+lonI.addEventListener("input", () => {
   const lat = parseFloat(latI.value);
   const lon = parseFloat(lonI.value);
   if (!isNaN(lat) && !isNaN(lon)) {
