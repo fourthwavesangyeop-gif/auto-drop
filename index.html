@@ -255,29 +255,24 @@ function updateRadiusLabel(lat, lon, r){
     map.removeLayer(radiusLabel);
     radiusLabel=null;
   }
-  if(!r || r <= 0) return;
+  if(!r || r<=0) return;
 
   radiusLabel = L.marker([lat, lon], {
     icon: L.divIcon({
       className: "radius-label",
-      html: `
-        <div style="
-          display:inline-block;
-          background: rgba(0,0,0,0.75);
-          color:#7aa2ff;
-          padding:4px 8px;
-          border-radius:6px;
-          font-size:13px;
-          font-weight:600;
-          border:1px solid #2a3a56;
-          white-space:nowrap;
-          transform: translate(-50%, -10px);
-        ">
-          ${r.toFixed(1)} m
-        </div>
-      `,
-      iconSize: [0, 0],
-      iconAnchor: [15, 40]   // ★ 마커 머리 위로 정확히 위치
+      html: `<div style="
+        background:rgba(0,0,0,0.65);
+        color:#7aa2ff;
+        padding:4px 8px;
+        border-radius:6px;
+        font-size:13px;
+        font-weight:600;
+        border:1px solid #2a3a56;
+        display:inline-block;
+        white-space:nowrap;
+      ">${r.toFixed(1)} m</div>`,
+      iconSize:[60,20],     // 라벨 박스 크기
+      iconAnchor:[30,55]    // ★ 마커 머리 바로 위
     })
   }).addTo(map);
 }
@@ -374,7 +369,7 @@ function updateRadiusCircleFromInputs(){
   const v=parseFloat(vI.value);
   const h=parseFloat(hI.value);
   const offset=parseFloat(offsetI.value||0);
-  const mass=parseFloat(massI.value||0.757);
+  const mass=parseFloat(massI.value);
 
   if(isNaN(lat)||isNaN(lon)||isNaN(v)||isNaN(h)) return;
 
