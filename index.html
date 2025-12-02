@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (BLE + Serial Dual Sync + Radius Label)</title>
+  <title>Auto Drop Module — Web UI (BLE + Serial Dual Sync + Radius Label + Mobile)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Leaflet -->
@@ -76,95 +76,134 @@
     .dot-ok { background:var(--ok) }
     .dot-err { background:var(--err) }
 
-/* Form ---------------------------- */
-.form {
-  display:grid;
-  grid-template-columns:auto 1fr;
-  gap:12px;
-  align-items:center;
-}
+    /* Form ---------------------------- */
+    .form {
+      display:grid;
+      grid-template-columns:auto 1fr;
+      gap:12px;
+      align-items:center;
+    }
 
-.pair {
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-}
+    .pair {
+      display:grid;
+      grid-template-columns:1fr 1fr;
+      gap:10px;
+    }
 
-/* PWM 입력은 반응형 제거하고 세로 정렬 */
-.pwm-list {
-  display:flex;
-  flex-direction:column;
-  gap:10px;
-}
+    /* PWM 입력은 세로 정렬 */
+    .pwm-list {
+      display:flex;
+      flex-direction:column;
+      gap:10px;
+    }
 
-.with-unit { position:relative; }
-.with-unit input[type=number]{ -moz-appearance:textfield; }
-.with-unit input::-webkit-inner-spin-button,
-.with-unit input::-webkit-outer-spin-button { -webkit-appearance:none; }
+    .with-unit { position:relative; }
+    .with-unit input[type=number]{ -moz-appearance:textfield; }
+    .with-unit input::-webkit-inner-spin-button,
+    .with-unit input::-webkit-outer-spin-button { -webkit-appearance:none; }
 
-.with-unit input {
-  width:100%;
-  padding:10px 48px 10px 12px;
-  border:1px solid #2a3a56;
-  border-radius:8px;
-  background:#0e1520;
-  color:var(--ink);
-}
+    .with-unit input {
+      width:100%;
+      padding:10px 48px 10px 12px;
+      border:1px solid #2a3a56;
+      border-radius:8px;
+      background:#0e1520;
+      color:var(--ink);
+    }
 
-.unit {
-  position:absolute;
-  right:10px;
-  top:50%;
-  transform:translateY(-50%);
-  font-size:12px;
-  color:var(--muted);
-}
+    .unit {
+      position:absolute;
+      right:10px;
+      top:50%;
+      transform:translateY(-50%);
+      font-size:12px;
+      color:var(--muted);
+    }
 
-button {
-  background:#152238;
-  color:var(--ink);
-  border-radius:10px;
-  padding:9px 12px;
-  border:1px solid #2a3a56;
-  cursor:pointer;
-  font-size:14px;
-  white-space:nowrap;
-}
+    button {
+      background:#152238;
+      color:var(--ink);
+      border-radius:10px;
+      padding:9px 12px;
+      border:1px solid #2a3a56;
+      cursor:pointer;
+      font-size:14px;
+      white-space:nowrap;
+    }
 
-.ok { background:var(--ok); color:#06210f; border:none; font-weight:700; }
-.blebtn { background:var(--ble); color:white; border:none; font-weight:600; }
-.primary { background:var(--accent); color:#0b0f14; font-weight:700; }
-.loadbtn { background:var(--load); color:#0a0e14; font-weight:700; }
-.warn { background:var(--warn); color:#1f1500; border:none; }
+    .ok { background:var(--ok); color:#06210f; border:none; font-weight:700; }
+    .blebtn { background:var(--ble); color:white; border:none; font-weight:600; }
+    .primary { background:var(--accent); color:#0b0f14; font-weight:700; }
+    .loadbtn { background:var(--load); color:#0a0e14; font-weight:700; }
+    .warn { background:var(--warn); color:#1f1500; border:none; }
 
-button:disabled { opacity:0.55; cursor:not-allowed; }
+    button:disabled { opacity:0.55; cursor:not-allowed; }
 
-.btnbar {
-  display:flex;
-  gap:8px;
-  margin-top:12px;
-  flex-wrap:wrap;
-}
+    .btnbar {
+      display:flex;
+      gap:8px;
+      margin-top:12px;
+      flex-wrap:wrap;
+    }
 
-.hr { height:1px; background:var(--line); margin:12px 0; }
+    .hr { height:1px; background:var(--line); margin:12px 0; }
 
-.log {
-  height:220px;
-  background:#0a0f18;
-  border:1px solid var(--line);
-  border-radius:10px;
-  padding:10px;
-  overflow:auto;
-  font-family:ui-monospace,Consolas,monospace;
-}
+    .log {
+      height:220px;
+      background:#0a0f18;
+      border:1px solid var(--line);
+      border-radius:10px;
+      padding:10px;
+      overflow:auto;
+      font-family:ui-monospace,Consolas,monospace;
+    }
 
+    /* 반경 라벨용 (추가 스타일이 필요하면 여기서 조정 가능) */
+    .radius-label-inner {
+      background:rgba(0,0,0,0.65);
+      color:#7aa2ff;
+      padding:4px 8px;
+      border-radius:6px;
+      font-size:13px;
+      font-weight:600;
+      border:1px solid #2a3a56;
+      display:inline-block;
+      white-space:nowrap;
+    }
+
+    /* 모바일 세로 모드: 지도 위, 파라미터 아래, 버튼 2열 */
+    @media (max-width: 900px) and (orientation:portrait) {
+      .wrap {
+        grid-template-columns:1fr;
+        gap:10px;
+        padding:0 10px;
+      }
+
+      .card.map-card {
+        order:0;
+      }
+
+      .panel-card {
+        order:1;
+      }
+
+      #map {
+        aspect-ratio:auto;
+        height:260px;
+      }
+
+      .btnbar {
+        display:grid;
+        grid-template-columns:repeat(2, minmax(0, 1fr));
+      }
+    }
   </style>
 </head>
 
 <body>
 <div class="wrap">
 
-  <!-- ================= LEFT ================= -->
+  <!-- ================= LEFT (MAP) ================= -->
   <div class="card map-card">
     <div class="titlebar">
       <h1>Target Picker</h1>
@@ -178,8 +217,8 @@ button:disabled { opacity:0.55; cursor:not-allowed; }
     <div class="hint">지도를 클릭하면 우측 입력값이 자동으로 채워집니다.</div>
   </div>
 
-  <!-- ================= RIGHT ================= -->
-  <div class="card">
+  <!-- ================= RIGHT (FORM) ================= -->
+  <div class="card panel-card">
     <h1>Auto Drop Module</h1>
 
     <div class="form">
@@ -204,58 +243,59 @@ button:disabled { opacity:0.55; cursor:not-allowed; }
       <div class="label">투하물 중량:</div>
       <div class="with-unit"><input id="mass" type="number" step="0.01"><span class="unit">kg</span></div>
 
-     <div class="label">PWM 값:</div>
-     <div class="pwm-list">
+      <div class="label">PWM 값:</div>
+      <div class="pwm-list">
 
-      <div>
-        <div class="label">PWM 1</div>
-        <div class="with-unit">
-          <input id="pwm1"><span class="unit">µs</span>
+        <div>
+          <div class="label">PWM 1</div>
+          <div class="with-unit">
+            <input id="pwm1"><span class="unit">µs</span>
+          </div>
         </div>
-      </div>
-      
-      <div>
-        <div class="label">PWM 2</div>
-        <div class="with-unit">
-          <input id="pwm2"><span class="unit">µs</span>
-        </div>
-      </div>
 
-      <div>
-        <div class="label">PWM 3</div>
-        <div class="with-unit">
-          <input id="pwm3"><span class="unit">µs</span>
+        <div>
+          <div class="label">PWM 2</div>
+          <div class="with-unit">
+            <input id="pwm2"><span class="unit">µs</span>
+          </div>
         </div>
-      </div>
-      
-      <div>
-        <div class="label">PWM 4</div>
-        <div class="with-unit">
-          <input id="pwm4"><span class="unit">µs</span>
-        </div>
-      </div>
-      
-      <div>
-        <div class="label">PWM 5</div>
-        <div class="with-unit">
-          <input id="pwm5"><span class="unit">µs</span>
-        </div>
-      </div>
-      
-      <div>
-        <div class="label">PWM 6</div>
-        <div class="with-unit">
-          <input id="pwm6"><span class="unit">µs</span>
-        </div>
-      </div>
 
-      <div>
-        <div class="label">PWM 7</div>
-        <div class="with-unit">
-          <input id="pwm7"><span class="unit">µs</span>
+        <div>
+          <div class="label">PWM 3</div>
+          <div class="with-unit">
+            <input id="pwm3"><span class="unit">µs</span>
+          </div>
         </div>
-      </div>
 
+        <div>
+          <div class="label">PWM 4</div>
+          <div class="with-unit">
+            <input id="pwm4"><span class="unit">µs</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="label">PWM 5</div>
+          <div class="with-unit">
+            <input id="pwm5"><span class="unit">µs</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="label">PWM 6</div>
+          <div class="with-unit">
+            <input id="pwm6"><span class="unit">µs</span>
+          </div>
+        </div>
+
+        <div>
+          <div class="label">PWM 7</div>
+          <div class="with-unit">
+            <input id="pwm7"><span class="unit">µs</span>
+          </div>
+        </div>
+
+      </div>
     </div>
 
     <!-- Buttons -->
@@ -280,54 +320,44 @@ button:disabled { opacity:0.55; cursor:not-allowed; }
    Leaflet Map + Drop Radius Label
 ======================================================== */
 const INIT = { lat:37.8765842, lon:127.1577533 };
-let dropCircle=null;
-let radiusLabel=null;   // ★ 추가됨
-let marker=null;
+let dropCircle = null;
+let radiusLabel = null;
+let marker = null;
 
 /* 지도 생성 */
-const map=L.map("map").setView([INIT.lat,INIT.lon],16);
+const map = L.map("map").setView([INIT.lat, INIT.lon], 16);
 
-const baseSAT=L.tileLayer(
+const baseSAT = L.tileLayer(
   "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
-  {maxZoom:19}
+  { maxZoom: 19 }
 ).addTo(map);
 
-function moveMarker(lat,lon,center=true){
-  if(marker) marker.setLatLng([lat,lon]);
-  else marker=L.marker([lat,lon]).addTo(map);
+function moveMarker(lat, lon, center = true){
+  if(marker) marker.setLatLng([lat, lon]);
+  else marker = L.marker([lat, lon]).addTo(map);
 
-  center ? map.setView([lat,lon]) : map.panTo([lat,lon]);
+  center ? map.setView([lat, lon]) : map.panTo([lat, lon]);
 }
 
-/* 반경 라벨 생성 함수 */
+/* 반경 라벨 생성 함수 (마커 머리 위 정렬) */
 function updateRadiusLabel(lat, lon, r){
   if(radiusLabel){
     map.removeLayer(radiusLabel);
-    radiusLabel=null;
+    radiusLabel = null;
   }
-  if(!r || r<=0) return;
+  if(!r || r <= 0) return;
 
   radiusLabel = L.marker([lat, lon], {
     icon: L.divIcon({
       className: "radius-label",
-      html: `<div style="
-        background:rgba(0,0,0,0.65);
-        color:#7aa2ff;
-        padding:4px 8px;
-        border-radius:6px;
-        font-size:13px;
-        font-weight:600;
-        border:1px solid #2a3a56;
-        display:inline-block;
-        white-space:nowrap;
-      ">${r.toFixed(1)} m</div>`,
-      iconSize:[60,20],     // 라벨 박스 크기
-      iconAnchor:[30,55]    // ★ 마커 머리 바로 위
+      html: `<div class="radius-label-inner">${r.toFixed(1)} m</div>`,
+      iconSize: [80, 24],     // 대략적인 라벨 박스 크기
+      iconAnchor: [40, 45]    // 마커 머리 바로 위에 오도록 조정
     })
   }).addTo(map);
 }
 
-/* 지도 클릭 시 입력값 자동 업데이트 */
+/* 지도 클릭 시 입력값 자동 업데이트 (소수점 7자리 고정) */
 map.on("click", e => {
   const lat = Number(e.latlng.lat.toFixed(7));
   const lon = Number(e.latlng.lng.toFixed(7));
@@ -340,15 +370,15 @@ map.on("click", e => {
 /* ========================================================
    Input Elements
 ======================================================== */
-const latI=document.getElementById("lat");
-const lonI=document.getElementById("lon");
-const vI=document.getElementById("v");
-const hI=document.getElementById("h");
-const holdI=document.getElementById("hold");
-const offsetI=document.getElementById("offset");
-const massI=document.getElementById("mass");
+const latI   = document.getElementById("lat");
+const lonI   = document.getElementById("lon");
+const vI     = document.getElementById("v");
+const hI     = document.getElementById("h");
+const holdI  = document.getElementById("hold");
+const offsetI= document.getElementById("offset");
+const massI  = document.getElementById("mass");
 
-const pwmI=[
+const pwmI = [
   document.getElementById("pwm1"),
   document.getElementById("pwm2"),
   document.getElementById("pwm3"),
@@ -358,7 +388,7 @@ const pwmI=[
   document.getElementById("pwm7")
 ];
 
-function setLatLon(lat,lon){
+function setLatLon(lat, lon){
   latI.value = Number(lat).toFixed(7);
   lonI.value = Number(lon).toFixed(7);
 }
@@ -366,47 +396,47 @@ function setLatLon(lat,lon){
 /* ========================================================
    Drop Model
 ======================================================== */
-function computeFallTime(h,vt){
-  if(vt<=0.1) return Math.sqrt((2*h)/9.80665);
-  const G=9.80665;
-  let a=(G*h)/(vt*vt);
-  if(a<1e-4) return Math.sqrt((2*h)/G);
-  if(a>80) a=80;
-  const ex=Math.exp(a);
-  const inner=ex*ex - 1;
-  const ac=Math.log(ex + Math.sqrt(inner>=0?inner:0));
+function computeFallTime(h, vt){
+  if(vt <= 0.1) return Math.sqrt((2*h)/9.80665);
+  const G = 9.80665;
+  let a = (G*h)/(vt*vt);
+  if(a < 1e-4) return Math.sqrt((2*h)/G);
+  if(a > 80) a = 80;
+  const ex = Math.exp(a);
+  const inner = ex*ex - 1;
+  const ac = Math.log(ex + Math.sqrt(inner>=0 ? inner : 0));
   return (vt/G)*ac;
 }
 
 function estimateVT(m){
-  if(m<=0.30) return 18;
-  if(m<=0.50) return 22.5;
-  if(m<=0.60) return 24.7;
-  if(m<=0.70) return 26.7;
-  if(m<=1.00) return 28.5;
-  if(m<=2.00) return 32;
+  if(m <= 0.30) return 18;
+  if(m <= 0.50) return 22.5;
+  if(m <= 0.60) return 24.7;
+  if(m <= 0.70) return 26.7;
+  if(m <= 1.00) return 28.5;
+  if(m <= 2.00) return 32;
   return 38;
 }
 
-function computeDropRadius(v,h,m){
-  const vt=estimateVT(m);
-  const t=computeFallTime(h,vt);
-  return v*t*1.22;
+function computeDropRadius(v, h, m){
+  const vt = estimateVT(m);
+  const t  = computeFallTime(h, vt);
+  return v * t * 1.22;
 }
 
-function drawDropCircle(lat,lon,r){
+function drawDropCircle(lat, lon, r){
   if(dropCircle){
     map.removeLayer(dropCircle);
-    dropCircle=null;
+    dropCircle = null;
   }
-  if(r<=0) return;
+  if(r <= 0) return;
 
-  dropCircle=L.circle([lat,lon],{
-    radius:r,
-    color:"#7aa2ff",
-    weight:2,
-    fillColor:"#7aa2ff",
-    fillOpacity:0.15
+  dropCircle = L.circle([lat, lon], {
+    radius: r,
+    color: "#7aa2ff",
+    weight: 2,
+    fillColor: "#7aa2ff",
+    fillOpacity: 0.15
   }).addTo(map);
 }
 
@@ -414,49 +444,51 @@ function drawDropCircle(lat,lon,r){
    Update radius circle + label
 ======================================================== */
 function updateRadiusCircleFromInputs(){
-  const lat=parseFloat(latI.value);
-  const lon=parseFloat(lonI.value);
-  const v=parseFloat(vI.value);
-  const h=parseFloat(hI.value);
-  const offset=parseFloat(offsetI.value||0);
-  const mass=parseFloat(massI.value);
+  const lat    = parseFloat(latI.value);
+  const lon    = parseFloat(lonI.value);
+  const v      = parseFloat(vI.value);
+  const h      = parseFloat(hI.value);
+  const offset = parseFloat(offsetI.value || 0);
+  const mass   = parseFloat(massI.value);
 
-  if(isNaN(lat)||isNaN(lon)||isNaN(v)||isNaN(h)) return;
+  if(isNaN(lat) || isNaN(lon) || isNaN(v) || isNaN(h) || isNaN(mass)) return;
 
-  const base=computeDropRadius(v,h,mass);
-  const eff=base+offset;
+  const base = computeDropRadius(v, h, mass);
+  const eff  = base + offset;
 
-  drawDropCircle(lat,lon,eff);
-  updateRadiusLabel(lat,lon,eff);   // ★ 여기서 라벨 업데이트
+  drawDropCircle(lat, lon, eff);
+  updateRadiusLabel(lat, lon, eff);
 }
 
-[vI,hI,offsetI,massI].forEach(i=> i.addEventListener("input",updateRadiusCircleFromInputs));
-latI.addEventListener("change",updateRadiusCircleFromInputs);
-lonI.addEventListener("change",updateRadiusCircleFromInputs);
+[vI, hI, offsetI, massI].forEach(i => i.addEventListener("input", updateRadiusCircleFromInputs));
+latI.addEventListener("change", updateRadiusCircleFromInputs);
+lonI.addEventListener("change", updateRadiusCircleFromInputs);
 
 /* ========================================================
    Serial Communication
 ======================================================== */
-let port=null,reader=null,writer=null;
-const logEl=document.getElementById("log");
-const encoder=new TextEncoder();
+let port   = null;
+let reader = null;
+let writer = null;
+const logEl   = document.getElementById("log");
+const encoder = new TextEncoder();
 
-function log(msg,color){
-  const d=document.createElement("div");
-  if(color) d.style.color=color;
-  d.textContent=msg;
+function log(msg, color){
+  const d = document.createElement("div");
+  if(color) d.style.color = color;
+  d.textContent = msg;
   logEl.appendChild(d);
-  logEl.scrollTop=logEl.scrollHeight;
+  logEl.scrollTop = logEl.scrollHeight;
 }
 
-const portDot=document.getElementById("portDot");
-const portLbl=document.getElementById("portLbl");
-const btnDisconnect=document.getElementById("btnDisconnect");
+const portDot       = document.getElementById("portDot");
+const portLbl       = document.getElementById("portLbl");
+const btnDisconnect = document.getElementById("btnDisconnect");
 
 function setPortStatus(on){
-  portDot.className="stat-dot "+(on?"dot-ok":"dot-err");
-  portLbl.textContent=on?"Connected":"Disconnected";
-  btnDisconnect.disabled=!on;
+  portDot.className  = "stat-dot " + (on ? "dot-ok" : "dot-err");
+  portLbl.textContent= on ? "Connected" : "Disconnected";
+  btnDisconnect.disabled = !on;
 }
 
 async function connectSerial(){
@@ -465,58 +497,76 @@ async function connectSerial(){
     return;
   }
   try{
-    port=await navigator.serial.requestPort();
-    await port.open({baudRate:115200});
-    writer=port.writable.getWriter();
-    reader=port.readable.getReader();
+    port = await navigator.serial.requestPort();
+    await port.open({ baudRate: 115200 });
+    writer = port.writable.getWriter();
+    reader = port.readable.getReader();
     setPortStatus(true);
-    log("> Serial 연결됨","#9be5a3");
+    log("> Serial 연결됨", "#9be5a3");
     readLoop();
   }catch(e){
     await safeTearDown();
     setPortStatus(false);
-    log("> Serial ERR "+e,"#ff8b8b");
+    log("> Serial ERR " + e, "#ff8b8b");
   }
 }
 
 async function safeTearDown(){
-  try{ if(reader){ await reader.cancel(); reader.releaseLock(); }}catch{}
-  reader=null;
-  try{ if(writer){ await writer.close(); writer.releaseLock(); }}catch{}
-  writer=null;
-  try{ if(port){ await port.close(); }}catch{}
-  port=null;
+  try{
+    if(reader){
+      await reader.cancel();
+      reader.releaseLock();
+    }
+  }catch{}
+  reader = null;
+
+  try{
+    if(writer){
+      await writer.close();
+      writer.releaseLock();
+    }
+  }catch{}
+  writer = null;
+
+  try{
+    if(port){
+      await port.close();
+    }
+  }catch{}
+  port = null;
 }
 
 async function disconnectSerial(){
   await safeTearDown();
   setPortStatus(false);
-  log("> Serial 해제","#ffc857");
+  log("> Serial 해제", "#ffc857");
 }
 
 async function readLoop(){
   while(reader){
     try{
-      const {value,done}=await reader.read();
+      const { value, done } = await reader.read();
       if(done) break;
       if(value){
         new TextDecoder().decode(value).split(/\r?\n/)
-          .forEach(l=> l && log(l));
+          .forEach(l => l && log(l));
       }
-    }catch{ break; }
+    }catch{
+      break;
+    }
   }
 }
 
 async function sendLine(s){
   if(!writer){
-    log("> Serial ERR: 연결 안됨","#ff8b8b");
+    log("> Serial ERR: 연결 안됨", "#ff8b8b");
     return;
   }
   try{
-    await writer.write(encoder.encode(s+"\n"));
-    log("> Serial: "+s,"#9bb1d6");
+    await writer.write(encoder.encode(s + "\n"));
+    log("> Serial: " + s, "#9bb1d6");
   }catch(e){
-    log("> Serial ERR "+e,"#ff8b8b");
+    log("> Serial ERR " + e, "#ff8b8b");
   }
 }
 
@@ -524,179 +574,193 @@ async function loadSerialParams(){
   if(!writer || !reader) return null;
   try{
     await writer.write(encoder.encode("REQ\n"));
-    const {value}=await reader.read();
-    const txt=new TextDecoder().decode(value).trim();
+    const { value } = await reader.read();
+    const txt = new TextDecoder().decode(value).trim();
     return JSON.parse(txt);
-  }catch(e){ return null; }
+  }catch(e){
+    return null;
+  }
 }
 
 /* ========================================================
    BLE Communication
 ======================================================== */
-let bleDevice=null,bleServer=null,bleService=null,bleCharacteristic=null;
+let bleDevice         = null;
+let bleServer         = null;
+let bleService        = null;
+let bleCharacteristic = null;
 
-const SERVICE_UUID="6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-const CHARACTERISTIC_UUID_RX="6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+const SERVICE_UUID          = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const CHARACTERISTIC_UUID_RX= "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
-document.getElementById("btnBLE").onclick=async()=>{
+document.getElementById("btnBLE").onclick = async () => {
   try{
-    bleDevice=await navigator.bluetooth.requestDevice({
-      filters:[{services:[SERVICE_UUID]}]
+    bleDevice = await navigator.bluetooth.requestDevice({
+      filters:[{ services:[SERVICE_UUID] }]
     });
-    bleServer=await bleDevice.gatt.connect();
-    bleService=await bleServer.getPrimaryService(SERVICE_UUID);
-    bleCharacteristic=await bleService.getCharacteristic(CHARACTERISTIC_UUID_RX);
+    bleServer        = await bleDevice.gatt.connect();
+    bleService       = await bleServer.getPrimaryService(SERVICE_UUID);
+    bleCharacteristic= await bleService.getCharacteristic(CHARACTERISTIC_UUID_RX);
 
-    log("> BLE 연결 성공","#7aa2ff");
+    log("> BLE 연결 성공", "#7aa2ff");
   }catch(e){
-    log("> BLE ERR "+e,"#ff8b8b");
+    log("> BLE ERR " + e, "#ff8b8b");
   }
 };
 
 async function loadBLEParams(){
   if(!bleCharacteristic) return null;
   try{
-    const v=await bleCharacteristic.readValue();
-    const txt=new TextDecoder().decode(v).trim();
+    const v   = await bleCharacteristic.readValue();
+    const txt = new TextDecoder().decode(v).trim();
     return JSON.parse(txt);
-  }catch(e){ return null; }
+  }catch(e){
+    return null;
+  }
 }
 
 async function bleSend(obj){
   if(!bleCharacteristic){
-    log("> BLE ERR: 연결 안됨","#ff8b8b");
+    log("> BLE ERR: 연결 안됨", "#ff8b8b");
     return;
   }
   try{
-    const msg=JSON.stringify(obj);
+    const msg = JSON.stringify(obj);
     await bleCharacteristic.writeValue(
       new TextEncoder().encode(msg)
     );
-    log("> BLE: "+msg,"#7aa2ff");
+    log("> BLE: " + msg, "#7aa2ff");
   }catch(e){
-    log("> BLE ERR "+e,"#ff8b8b");
+    log("> BLE ERR " + e, "#ff8b8b");
   }
 }
 
 /* ========================================================
    PARAM PACK + APPLY
 ======================================================== */
-function fixNumber(v,def){
-  if(v.trim()==="") return def;
-  const n=parseFloat(v);
-  return isNaN(n)?def:n;
+function fixNumber(v, def){
+  if(v.trim() === "") return def;
+  const n = parseFloat(v);
+  return isNaN(n) ? def : n;
 }
-function fixPWM(v){ const n=parseInt(v); return isNaN(n)?1500:n; }
+function fixPWM(v){
+  const n = parseInt(v);
+  return isNaN(n) ? 1500 : n;
+}
 
 function buildParamLine(){
-  const lat=latI.value.trim();
-  const lon=lonI.value.trim();
-  const v=vI.value.trim();
-  const h=hI.value.trim();
-  const hold=holdI.value.trim();
-  const offset=fixNumber(offsetI.value,"0");
-  const mass=massI.value.trim();
+  const lat   = latI.value.trim();
+  const lon   = lonI.value.trim();
+  const v     = vI.value.trim();
+  const h     = hI.value.trim();
+  const hold  = holdI.value.trim();
+  const offset= fixNumber(offsetI.value, "0");
+  const mass  = massI.value.trim();   // 무조건 사용자 입력값만 사용
 
-  const pwm=pwmI.map(x=>fixPWM(x.value));
+  const pwm = pwmI.map(x => fixPWM(x.value));
 
   updateRadiusCircleFromInputs();
 
   return [
     lat, lon, v, h, hold, offset, mass,
-    pwm[0],pwm[1],pwm[2],pwm[3],pwm[4],pwm[5],pwm[6]
+    pwm[0], pwm[1], pwm[2], pwm[3], pwm[4], pwm[5], pwm[6]
   ].join(" ");
 }
 
 function applyParamsToUI(d){
-  latI.value=d.lat;
-  lonI.value=d.lon;
-  vI.value=d.v;
-  hI.value=d.h;
-  holdI.value=d.hold;
-  offsetI.value=d.offset;
-  massI.value=d.mass;
+  latI.value   = d.lat;
+  lonI.value   = d.lon;
+  vI.value     = d.v;
+  hI.value     = d.h;
+  holdI.value  = d.hold;
+  offsetI.value= d.offset;
+  massI.value  = d.mass;
 
   if(d.pwm){
-    d.pwm.forEach((p,i)=> pwmI[i].value=p );
+    d.pwm.forEach((p, i) => pwmI[i].value = p);
   }
 
-  moveMarker(d.lat,d.lon,true);
+  moveMarker(d.lat, d.lon, true);
   updateRadiusCircleFromInputs();
 }
 
 /* ========================================================
    Button Logic
 ======================================================== */
-document.getElementById("btnConnect").onclick=connectSerial;
-document.getElementById("btnDisconnect").onclick=disconnectSerial;
+document.getElementById("btnConnect").onclick    = connectSerial;
+document.getElementById("btnDisconnect").onclick = disconnectSerial;
 
 /* Dual Send: Serial + BLE */
-document.getElementById("btnSend").onclick=()=>{
-  const line = buildParamLine();
+document.getElementById("btnSend").onclick = () => {
+  const line  = buildParamLine();
   const parts = line.split(" ");
 
   sendLine(line);
 
-  const bleObj={
-    lat:parts[0], lon:parts[1], v:parts[2], h:parts[3],
-    hold:parts[4], offset:parts[5], mass:parts[6],
-    pwm:[parts[7],parts[8],parts[9],parts[10],parts[11],parts[12],parts[13]]
+  const bleObj = {
+    lat: parts[0], lon: parts[1], v: parts[2], h: parts[3],
+    hold: parts[4], offset: parts[5], mass: parts[6],
+    pwm: [parts[7], parts[8], parts[9], parts[10], parts[11], parts[12], parts[13]]
   };
   bleSend(bleObj);
 
-  log("> Dual Send 완료 (Serial + BLE)","#7aa2ff");
+  log("> Dual Send 완료 (Serial + BLE)", "#7aa2ff");
 };
 
 /* Dual Load: Serial + BLE (먼저 응답한 쪽 사용) */
-document.getElementById("btnLoad").onclick=async()=>{
+document.getElementById("btnLoad").onclick = async () => {
   log("> 불러오기 요청 (Serial+BLE 병렬)", "#7aa2ff");
 
-  const tasks=[];
-  if(writer && reader) tasks.push(loadSerialParams());
-  if(bleCharacteristic) tasks.push(loadBLEParams());
+  const tasks = [];
+  if(writer && reader)      tasks.push(loadSerialParams());
+  if(bleCharacteristic)     tasks.push(loadBLEParams());
 
-  if(tasks.length===0){
+  if(tasks.length === 0){
     log("> 연결된 장치 없음", "#ff8b8b");
     return;
   }
 
-  let data=null;
+  let data = null;
   try{
-    data=await Promise.any(tasks);
+    data = await Promise.any(tasks);
   }catch{
-    data=null;
+    data = null;
   }
 
   if(!data){
-    log("> 불러오기 실패: 응답 없음","#ff8b8b");
+    log("> 불러오기 실패: 응답 없음", "#ff8b8b");
     return;
   }
 
   applyParamsToUI(data);
-  log("> 불러오기 성공!","#7aa2ff");
+  log("> 불러오기 성공!", "#7aa2ff");
 };
 
 /* Reset */
-document.getElementById("btnReset").onclick=()=>{
-  setLatLon(INIT.lat,INIT.lon);
-  moveMarker(INIT.lat,INIT.lon,true);
+document.getElementById("btnReset").onclick = () => {
+  setLatLon(INIT.lat, INIT.lon);
+  moveMarker(INIT.lat, INIT.lon, true);
 
-  vI.value=hI.value=holdI.value=offsetI.value=massI.value="";
-  pwmI.forEach(i=>i.value="");
+  vI.value = hI.value = holdI.value = offsetI.value = massI.value = "";
+  pwmI.forEach(i => i.value = "");
 
-  if(dropCircle) map.removeLayer(dropCircle);
-  dropCircle=null;
+  if(dropCircle){
+    map.removeLayer(dropCircle);
+    dropCircle = null;
+  }
+  if(radiusLabel){
+    map.removeLayer(radiusLabel);
+    radiusLabel = null;
+  }
 
-  if(radiusLabel){ map.removeLayer(radiusLabel); radiusLabel=null; }
-
-  log("> Reset 완료","#9bb1d6");
+  log("> Reset 완료", "#9bb1d6");
 };
 
 /* ========================================================
    Init
 ======================================================== */
-moveMarker(INIT.lat,INIT.lon,true);
-setLatLon(INIT.lat,INIT.lon);
+moveMarker(INIT.lat, INIT.lon, true);
+setLatLon(INIT.lat, INIT.lon);
 setPortStatus(false);
 
 </script>
