@@ -461,8 +461,24 @@ function updateRadiusCircleFromInputs(){
 }
 
 [vI, hI, offsetI, massI].forEach(i => i.addEventListener("input", updateRadiusCircleFromInputs));
-latI.addEventListener("change", updateRadiusCircleFromInputs);
-lonI.addEventListener("change", updateRadiusCircleFromInputs);
+latI.addEventListener("change", () => {
+  const lat = parseFloat(latI.value);
+  const lon = parseFloat(lonI.value);
+  if (!isNaN(lat) && !isNaN(lon)) {
+    moveMarker(lat, lon, true);     // ★ 마커 이동 추가
+  }
+  updateRadiusCircleFromInputs();
+});
+
+lonI.addEventListener("change", () => {
+  const lat = parseFloat(latI.value);
+  const lon = parseFloat(lonI.value);
+  if (!isNaN(lat) && !isNaN(lon)) {
+    moveMarker(lat, lon, true);     // ★ 마커 이동 추가
+  }
+  updateRadiusCircleFromInputs();
+});
+
 
 /* ========================================================
    Serial Communication
