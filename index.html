@@ -2,7 +2,7 @@
 <html lang="ko">
 <head>
   <meta charset="utf-8" />
-  <title>Auto Drop Module — Web UI (BLE + Serial Dual Sync)</title>
+  <title>Auto Drop Module — Web UI (BLE + Serial Dual Sync + Radius Label)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Leaflet -->
@@ -156,7 +156,7 @@
 <body>
 <div class="wrap">
 
-  <!-- ================= LEFT (MAP) ================= -->
+  <!-- ================= LEFT ================= -->
   <div class="card map-card">
     <div class="titlebar">
       <h1>Target Picker</h1>
@@ -170,7 +170,7 @@
     <div class="hint">지도를 클릭하면 우측 입력값이 자동으로 채워집니다.</div>
   </div>
 
-  <!-- ================= RIGHT (FORM) ================= -->
+  <!-- ================= RIGHT ================= -->
   <div class="card">
     <h1>Auto Drop Module</h1>
 
@@ -208,32 +208,33 @@
       </div>
     </div>
 
-    <!-- ================= BUTTON BAR ================= -->
+    <!-- Buttons -->
     <div class="btnbar">
-
       <button id="btnConnect" class="ok">시리얼 연결</button>
       <button id="btnBLE" class="blebtn">BLE 연결</button>
-
       <button id="btnSend" class="primary">파라미터 전송</button>
       <button id="btnLoad" class="loadbtn">불러오기</button>
-
       <button id="btnDisconnect" class="warn" disabled>해제</button>
       <button id="btnReset">리셋</button>
-
     </div>
 
     <div class="hr"></div>
-    <div class="hint">입력값이 장치로 전송되며, 불러오기는 Serial/BLE 중 연결된 장치 응답을 자동 반영합니다.</div>
+    <div class="hint">시리얼/BLE 이중 전송 및 자동 불러오기를 지원합니다.</div>
     <div id="log" class="log"></div>
+
   </div>
 </div>
+
 <script>
-/* ========================
-   Leaflet Map
-======================== */
+/* ========================================================
+   Leaflet Map + Drop Radius Label
+======================================================== */
 const INIT = { lat:37.8765842, lon:127.1577533 };
 let dropCircle=null;
+let radiusLabel=null;   // ★ 추가됨
+let marker=null;
 
+/* 지도 생성 */
 const map=L.map("map").setView([INIT.lat,INIT.lon],16);
 
 const baseSAT=L.tileLayer(
@@ -241,23 +242,49 @@ const baseSAT=L.tileLayer(
   {maxZoom:19}
 ).addTo(map);
 
-let marker=null;
-
 function moveMarker(lat,lon,center=true){
   if(marker) marker.setLatLng([lat,lon]);
   else marker=L.marker([lat,lon]).addTo(map);
+
   center ? map.setView([lat,lon]) : map.panTo([lat,lon]);
 }
 
+/* 반경 라벨 생성 함수 */
+function updateRadiusLabel(lat, lon, r){
+  if(radiusLabel){
+    map.removeLayer(radiusLabel);
+    radiusLabel=null;
+  }
+  if(!r || r<=0) return;
+
+  radiusLabel = L.marker([lat, lon], {
+    icon: L.divIcon({
+      className: "radius-label",
+      html: `<div style="
+        background:rgba(0,0,0,0.65);
+        color:#7aa2ff;
+        padding:4px 8px;
+        border-radius:6px;
+        font-size:13px;
+        font-weight:600;
+        border:1px solid #2a3a56;
+      ">${r.toFixed(1)} m</div>`,
+      iconSize:[10,10],
+      iconAnchor:[-15,-15]
+    })
+  }).addTo(map);
+}
+
+/* 지도 클릭 시 입력값 자동 업데이트 */
 map.on("click",e=>{
   setLatLon(e.latlng.lat,e.latlng.lng);
   moveMarker(e.latlng.lat,e.latlng.lng,false);
   updateRadiusCircleFromInputs();
 });
 
-/* ========================
+/* ========================================================
    Input Elements
-======================== */
+======================================================== */
 const latI=document.getElementById("lat");
 const lonI=document.getElementById("lon");
 const vI=document.getElementById("v");
@@ -281,9 +308,9 @@ function setLatLon(lat,lon){
   lonI.value=String(lon);
 }
 
-/* ========================
+/* ========================================================
    Drop Model
-======================== */
+======================================================== */
 function computeFallTime(h,vt){
   if(vt<=0.1) return Math.sqrt((2*h)/9.80665);
   const G=9.80665;
@@ -328,6 +355,9 @@ function drawDropCircle(lat,lon,r){
   }).addTo(map);
 }
 
+/* ========================================================
+   Update radius circle + label
+======================================================== */
 function updateRadiusCircleFromInputs(){
   const lat=parseFloat(latI.value);
   const lon=parseFloat(lonI.value);
@@ -342,11 +372,16 @@ function updateRadiusCircleFromInputs(){
   const eff=base+offset;
 
   drawDropCircle(lat,lon,eff);
+  updateRadiusLabel(lat,lon,eff);   // ★ 여기서 라벨 업데이트
 }
 
-/* ========================
+[vI,hI,offsetI,massI].forEach(i=> i.addEventListener("input",updateRadiusCircleFromInputs));
+latI.addEventListener("change",updateRadiusCircleFromInputs);
+lonI.addEventListener("change",updateRadiusCircleFromInputs);
+
+/* ========================================================
    Serial Communication
-======================== */
+======================================================== */
 let port=null,reader=null,writer=null;
 const logEl=document.getElementById("log");
 const encoder=new TextEncoder();
@@ -430,22 +465,19 @@ async function sendLine(s){
   }
 }
 
-/* Serial → JSON 불러오기 */
 async function loadSerialParams(){
   if(!writer || !reader) return null;
   try{
     await writer.write(encoder.encode("REQ\n"));
-    const {value} = await reader.read();
-    const txt = new TextDecoder().decode(value).trim();
+    const {value}=await reader.read();
+    const txt=new TextDecoder().decode(value).trim();
     return JSON.parse(txt);
-  }catch(e){
-    return null;
-  }
+  }catch(e){ return null; }
 }
 
-/* ========================
+/* ========================================================
    BLE Communication
-======================== */
+======================================================== */
 let bleDevice=null,bleServer=null,bleService=null,bleCharacteristic=null;
 
 const SERVICE_UUID="6e400001-b5a3-f393-e0a9-e50e24dcca9e";
@@ -466,11 +498,10 @@ document.getElementById("btnBLE").onclick=async()=>{
   }
 };
 
-/* BLE → JSON 불러오기 */
 async function loadBLEParams(){
   if(!bleCharacteristic) return null;
   try{
-    const v = await bleCharacteristic.readValue();
+    const v=await bleCharacteristic.readValue();
     const txt=new TextDecoder().decode(v).trim();
     return JSON.parse(txt);
   }catch(e){ return null; }
@@ -483,16 +514,18 @@ async function bleSend(obj){
   }
   try{
     const msg=JSON.stringify(obj);
-    await bleCharacteristic.writeValue(new TextEncoder().encode(msg));
+    await bleCharacteristic.writeValue(
+      new TextEncoder().encode(msg)
+    );
     log("> BLE: "+msg,"#7aa2ff");
   }catch(e){
     log("> BLE ERR "+e,"#ff8b8b");
   }
 }
 
-/* ========================
+/* ========================================================
    PARAM PACK + APPLY
-======================== */
+======================================================== */
 function fixNumber(v,def){
   if(v.trim()==="") return def;
   const n=parseFloat(v);
@@ -529,20 +562,20 @@ function applyParamsToUI(d){
   massI.value=d.mass;
 
   if(d.pwm){
-    d.pwm.forEach((p,i)=>{ if(pwmI[i]) pwmI[i].value=p; });
+    d.pwm.forEach((p,i)=> pwmI[i].value=p );
   }
 
   moveMarker(d.lat,d.lon,true);
   updateRadiusCircleFromInputs();
 }
 
-/* ========================
-   BUTTON HANDLER
-======================== */
+/* ========================================================
+   Button Logic
+======================================================== */
 document.getElementById("btnConnect").onclick=connectSerial;
 document.getElementById("btnDisconnect").onclick=disconnectSerial;
 
-/* Dual Send (Serial + BLE) */
+/* Dual Send: Serial + BLE */
 document.getElementById("btnSend").onclick=()=>{
   const line = buildParamLine();
   const parts = line.split(" ");
@@ -559,12 +592,11 @@ document.getElementById("btnSend").onclick=()=>{
   log("> Dual Send 완료 (Serial + BLE)","#7aa2ff");
 };
 
-/* 병렬 불러오기 (Serial + BLE 동시에 요청, 먼저 응답한 쪽 사용) */
+/* Dual Load: Serial + BLE (먼저 응답한 쪽 사용) */
 document.getElementById("btnLoad").onclick=async()=>{
   log("> 불러오기 요청 (Serial+BLE 병렬)", "#7aa2ff");
 
   const tasks=[];
-
   if(writer && reader) tasks.push(loadSerialParams());
   if(bleCharacteristic) tasks.push(loadBLEParams());
 
@@ -575,9 +607,9 @@ document.getElementById("btnLoad").onclick=async()=>{
 
   let data=null;
   try{
-    data = await Promise.any(tasks);
+    data=await Promise.any(tasks);
   }catch{
-    data = null;
+    data=null;
   }
 
   if(!data){
@@ -600,17 +632,18 @@ document.getElementById("btnReset").onclick=()=>{
   if(dropCircle) map.removeLayer(dropCircle);
   dropCircle=null;
 
+  if(radiusLabel){ map.removeLayer(radiusLabel); radiusLabel=null; }
+
   log("> Reset 완료","#9bb1d6");
 };
 
-/* ========================
+/* ========================================================
    Init
-======================== */
+======================================================== */
 moveMarker(INIT.lat,INIT.lon,true);
 setLatLon(INIT.lat,INIT.lon);
 setPortStatus(false);
 
 </script>
-
 </body>
 </html>
