@@ -541,11 +541,11 @@ function fixPWM(v){ const n=parseInt(v); return isNaN(n)?1500:n; }
 function buildParamLine(){
   const lat=latI.value.trim();
   const lon=lonI.value.trim();
-  const v=fixNumber(vI.value,"0");
-  const h=fixNumber(hI.value,"0");
-  const hold=fixNumber(holdI.value,"0.1");
+  const v=vI.value.trim();
+  const h=hI.value.trim();
+  const hold=holdI.value.trim();
   const offset=fixNumber(offsetI.value,"0");
-  const mass=fixNumber(massI.value,"0.757");
+  const mass=massI.value.trim();
 
   const pwm=pwmI.map(x=>fixPWM(x.value));
 
