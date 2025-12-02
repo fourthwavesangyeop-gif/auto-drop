@@ -277,15 +277,18 @@ function updateRadiusLabel(lat, lon, r){
         </div>
       `,
       iconSize: [0, 0],
-      iconAnchor: [0, 30]   // ★ 마커 머리 위로 정확히 위치
+      iconAnchor: [15, 40]   // ★ 마커 머리 위로 정확히 위치
     })
   }).addTo(map);
 }
 
 /* 지도 클릭 시 입력값 자동 업데이트 */
-map.on("click",e=>{
-  setLatLon(e.latlng.lat,e.latlng.lng);
-  moveMarker(e.latlng.lat,e.latlng.lng,false);
+map.on("click", e => {
+  const lat = Number(e.latlng.lat.toFixed(7));
+  const lon = Number(e.latlng.lng.toFixed(7));
+
+  setLatLon(lat, lon);
+  moveMarker(lat, lon, false);
   updateRadiusCircleFromInputs();
 });
 
@@ -311,8 +314,8 @@ const pwmI=[
 ];
 
 function setLatLon(lat,lon){
-  latI.value = lat.toFixed(7);
-  lonI.value = lon.toFixed(7);
+  latI.value = Number(lat).toFixed(7);
+  lonI.value = Number(lon).toFixed(7);
 }
 
 /* ========================================================
