@@ -76,12 +76,23 @@
     .dot-ok { background:var(--ok) }
     .dot-err { background:var(--err) }
 
+    .hint {
+      margin-top:8px;
+      font-size:13px;
+      color:var(--muted);
+    }
+
     /* Form ---------------------------- */
     .form {
       display:grid;
       grid-template-columns:auto 1fr;
       gap:12px;
       align-items:center;
+    }
+
+    .label {
+      font-size:14px;
+      color:var(--muted);
     }
 
     .pair {
@@ -156,9 +167,10 @@
       padding:10px;
       overflow:auto;
       font-family:ui-monospace,Consolas,monospace;
+      font-size:13px;
     }
 
-    /* 반경 라벨용 (추가 스타일이 필요하면 여기서 조정 가능) */
+    /* 반경 라벨용 */
     .radius-label-inner {
       background:rgba(0,0,0,0.65);
       color:#7aa2ff;
@@ -309,7 +321,7 @@
     </div>
 
     <div class="hr"></div>
-    <div class="hint">시리얼 모니터</div>
+    <div class="hint">시리얼 / BLE 로그</div>
     <div id="log" class="log"></div>
 
   </div>
@@ -351,8 +363,8 @@ function updateRadiusLabel(lat, lon, r){
     icon: L.divIcon({
       className: "radius-label",
       html: `<div class="radius-label-inner">${r.toFixed(1)} m</div>`,
-      iconSize: [80, 24],     // 대략적인 라벨 박스 크기
-      iconAnchor: [40, 45]    // 마커 머리 바로 위에 오도록 조정
+      iconSize: [80, 24],
+      iconAnchor: [40, 45]
     })
   }).addTo(map);
 }
@@ -394,11 +406,11 @@ function setLatLon(lat, lon){
 }
 
 /* ========================================================
-   Drop Model
+   Drop Model (웹 쪽 RAD 계산)
 ======================================================== */
 function computeFallTime(h, vt){
-  if(vt <= 0.1) return Math.sqrt((2*h)/9.80665);
   const G = 9.80665;
+  if(vt <= 0.1) return Math.sqrt((2*h)/G);
   let a = (G*h)/(vt*vt);
   if(a < 1e-4) return Math.sqrt((2*h)/G);
   if(a > 80) a = 80;
@@ -461,11 +473,12 @@ function updateRadiusCircleFromInputs(){
 }
 
 [vI, hI, offsetI, massI].forEach(i => i.addEventListener("input", updateRadiusCircleFromInputs));
+
 latI.addEventListener("input", () => {
   const lat = parseFloat(latI.value);
   const lon = parseFloat(lonI.value);
   if (!isNaN(lat) && !isNaN(lon)) {
-    moveMarker(lat, lon, true);     // ★ 마커 이동 추가
+    moveMarker(lat, lon, true);
   }
   updateRadiusCircleFromInputs();
 });
@@ -474,20 +487,20 @@ lonI.addEventListener("input", () => {
   const lat = parseFloat(latI.value);
   const lon = parseFloat(lonI.value);
   if (!isNaN(lat) && !isNaN(lon)) {
-    moveMarker(lat, lon, true);     // ★ 마커 이동 추가
+    moveMarker(lat, lon, true);
   }
   updateRadiusCircleFromInputs();
 });
 
-
 /* ========================================================
-   Serial Communication
+   Serial Communication (Web Serial)
 ======================================================== */
 let port   = null;
 let reader = null;
 let writer = null;
 const logEl   = document.getElementById("log");
 const encoder = new TextEncoder();
+let lastJsonLine = null;   // 시리얼에서 받은 마지막 JSON 라인
 
 function log(msg, color){
   const d = document.createElement("div");
@@ -509,14 +522,16 @@ function setPortStatus(on){
 
 async function connectSerial(){
   if(!("serial" in navigator)){
-    alert("Chrome 필요");
+    alert("이 브라우저는 Web Serial을 지원하지 않습니다. 데스크탑 크롬을 사용하세요.");
     return;
   }
   try{
     port = await navigator.serial.requestPort();
     await port.open({ baudRate: 115200 });
+
     writer = port.writable.getWriter();
     reader = port.readable.getReader();
+
     setPortStatus(true);
     log("> Serial 연결됨", "#9be5a3");
     readLoop();
@@ -559,13 +574,21 @@ async function disconnectSerial(){
 }
 
 async function readLoop(){
+  const dec = new TextDecoder();
   while(reader){
     try{
       const { value, done } = await reader.read();
       if(done) break;
       if(value){
-        new TextDecoder().decode(value).split(/\r?\n/)
-          .forEach(l => l && log(l));
+        dec.decode(value).split(/\r?\n/).forEach(l => {
+          if(!l) return;
+          log(l);
+
+          const t = l.trim();
+          if (t.startsWith("{") && t.includes('"lat"')) {
+            lastJsonLine = t;  // JSON 캐시
+          }
+        });
       }
     }catch{
       break;
@@ -586,20 +609,31 @@ async function sendLine(s){
   }
 }
 
+// readLoop가 계속 돌고 있기 때문에, JSON은 lastJsonLine으로 받는다.
 async function loadSerialParams(){
-  if(!writer || !reader) return null;
-  try{
-    await writer.write(encoder.encode("REQ\n"));
-    const { value } = await reader.read();
-    const txt = new TextDecoder().decode(value).trim();
-    return JSON.parse(txt);
-  }catch(e){
-    return null;
+  if(!writer) return null;
+
+  lastJsonLine = null;                // 이전 값 삭제
+  await writer.write(encoder.encode("REQ\n"));
+
+  const start = performance.now();
+  while(performance.now() - start < 1500){ // 1.5초 타임아웃
+    if(lastJsonLine){
+      const txt = lastJsonLine;
+      lastJsonLine = null;
+      try{
+        return JSON.parse(txt);
+      }catch{
+        return null;
+      }
+    }
+    await new Promise(r => setTimeout(r, 100));
   }
+  return null;
 }
 
 /* ========================================================
-   BLE Communication
+   BLE Communication (Web Bluetooth)
 ======================================================== */
 let bleDevice         = null;
 let bleServer         = null;
@@ -610,15 +644,31 @@ const SERVICE_UUID          = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const CHARACTERISTIC_UUID_RX= "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
 document.getElementById("btnBLE").onclick = async () => {
-  try{
-    bleDevice = await navigator.bluetooth.requestDevice({
-      filters:[{ services:[SERVICE_UUID] }]
-    });
-    bleServer        = await bleDevice.gatt.connect();
-    bleService       = await bleServer.getPrimaryService(SERVICE_UUID);
-    bleCharacteristic= await bleService.getCharacteristic(CHARACTERISTIC_UUID_RX);
+  if (!navigator.bluetooth) {
+    alert("이 브라우저는 Web Bluetooth를 지원하지 않습니다. 데스크탑/안드로이드 크롬 + HTTPS에서 사용하세요.");
+    return;
+  }
 
-    log("> BLE 연결 성공", "#7aa2ff");
+  try{
+    // 🔥 수정: 서비스 필터 대신 acceptAllDevices + optionalServices 사용
+    bleDevice = await navigator.bluetooth.requestDevice({
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
+      // filters: [{ namePrefix: "AutoDrop" }] 와 같이 추가 필터도 가능
+    });
+
+    bleDevice.addEventListener("gattserverdisconnected", () => {
+      log("> BLE 연결 해제됨", "#ffc857");
+      bleServer = null;
+      bleService = null;
+      bleCharacteristic = null;
+    });
+
+    bleServer         = await bleDevice.gatt.connect();
+    bleService        = await bleServer.getPrimaryService(SERVICE_UUID);
+    bleCharacteristic = await bleService.getCharacteristic(CHARACTERISTIC_UUID_RX);
+
+    log("> BLE 연결 성공: " + (bleDevice.name || "Unknown"), "#7aa2ff");
   }catch(e){
     log("> BLE ERR " + e, "#ff8b8b");
   }
@@ -629,8 +679,10 @@ async function loadBLEParams(){
   try{
     const v   = await bleCharacteristic.readValue();
     const txt = new TextDecoder().decode(v).trim();
+    if(!txt) return null;
     return JSON.parse(txt);
   }catch(e){
+    log("> BLE load ERR " + e, "#ff8b8b");
     return null;
   }
 }
@@ -670,7 +722,7 @@ function buildParamLine(){
   const v     = vI.value.trim();
   const h     = hI.value.trim();
   const hold  = holdI.value.trim();
-  const offset= fixNumber(offsetI.value, "0");
+  const offset= fixNumber(offsetI.value, 0);
   const mass  = massI.value.trim();   // 무조건 사용자 입력값만 사용
 
   const pwm = pwmI.map(x => fixPWM(x.value));
@@ -693,10 +745,12 @@ function applyParamsToUI(d){
   massI.value  = d.mass;
 
   if(d.pwm){
-    d.pwm.forEach((p, i) => pwmI[i].value = p);
+    d.pwm.forEach((p, i) => {
+      if (pwmI[i]) pwmI[i].value = p;
+    });
   }
 
-  moveMarker(d.lat, d.lon, true);
+  moveMarker(parseFloat(d.lat), parseFloat(d.lon), true);
   updateRadiusCircleFromInputs();
 }
 
@@ -711,8 +765,10 @@ document.getElementById("btnSend").onclick = () => {
   const line  = buildParamLine();
   const parts = line.split(" ");
 
+  // Serial
   sendLine(line);
 
+  // BLE용 객체
   const bleObj = {
     lat: parts[0], lon: parts[1], v: parts[2], h: parts[3],
     hold: parts[4], offset: parts[5], mass: parts[6],
@@ -723,13 +779,13 @@ document.getElementById("btnSend").onclick = () => {
   log("> Dual Send 완료 (Serial + BLE)", "#7aa2ff");
 };
 
-/* Dual Load: Serial + BLE (먼저 응답한 쪽 사용) */
+/* Dual Load: Serial + BLE (먼저 성공한 것 사용) */
 document.getElementById("btnLoad").onclick = async () => {
   log("> 불러오기 요청 (Serial+BLE 병렬)", "#7aa2ff");
 
   const tasks = [];
-  if(writer && reader)      tasks.push(loadSerialParams());
-  if(bleCharacteristic)     tasks.push(loadBLEParams());
+  if(writer)            tasks.push(loadSerialParams());
+  if(bleCharacteristic) tasks.push(loadBLEParams());
 
   if(tasks.length === 0){
     log("> 연결된 장치 없음", "#ff8b8b");
@@ -738,6 +794,7 @@ document.getElementById("btnLoad").onclick = async () => {
 
   let data = null;
   try{
+    // Promise.any: 여러 개 중에서 "처음으로 성공적으로 resolve" 된 값
     data = await Promise.any(tasks);
   }catch{
     data = null;
@@ -779,6 +836,12 @@ moveMarker(INIT.lat, INIT.lon, true);
 setLatLon(INIT.lat, INIT.lon);
 setPortStatus(false);
 
+if (!("bluetooth" in navigator)) {
+  log("> 이 브라우저는 Web Bluetooth 미지원 (BLE 버튼은 동작 안 할 수 있음)", "#ff8b8b");
+}
+if (!("serial" in navigator)) {
+  log("> 이 브라우저는 Web Serial 미지원 (시리얼 연결은 동작 안 함)", "#ff8b8b");
+}
 </script>
 </body>
 </html>
