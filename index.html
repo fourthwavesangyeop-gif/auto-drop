@@ -674,13 +674,11 @@ document.getElementById("btnBLE").onclick = async () => {
     return;
   }
   try{
-    // 이름이 "AutoDrop"으로 시작하고, 해당 서비스 광고하는 장치만 필터
     bleDevice = await navigator.bluetooth.requestDevice({
-      filters:[{
-        services:[SERVICE_UUID],
-        namePrefix:"AutoDrop"
-      }]
+      acceptAllDevices: true,
+      optionalServices: [SERVICE_UUID]
     });
+
     bleDevice.addEventListener("gattserverdisconnected", () => {
       bleConnected = false;
       updateConnStatus();
