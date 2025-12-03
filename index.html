@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <title>Auto Drop Module — Web UI (BLE + Serial Dual Sync + Radius Label + Mobile)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
 
   <!-- Leaflet -->
   <link rel="stylesheet"
@@ -121,6 +122,7 @@
       border-radius:8px;
       background:#0e1520;
       color:var(--ink);
+      font-size:16px; /* 모바일 키보드 자동 줌 방지 */
     }
 
     .unit {
@@ -668,6 +670,17 @@ let bleCharacteristic = null;
 const SERVICE_UUID          = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
 const CHARACTERISTIC_UUID_RX= "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
+// ★ 모바일 레이아웃이 깨지지 않도록 뷰포트 고정
+function lockViewport(){
+  const vp = document.querySelector("meta[name=viewport]");
+  if(vp){
+    vp.setAttribute(
+      "content",
+      "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+    );
+  }
+}
+
 document.getElementById("btnBLE").onclick = async () => {
   if(!navigator.bluetooth){
     alert("이 브라우저는 Web Bluetooth를 지원하지 않습니다.");
@@ -683,6 +696,7 @@ document.getElementById("btnBLE").onclick = async () => {
       bleConnected = false;
       updateConnStatus();
       log("> BLE 연결 끊어짐", "#ffc857");
+      lockViewport();
     });
 
     bleServer        = await bleDevice.gatt.connect();
@@ -691,6 +705,7 @@ document.getElementById("btnBLE").onclick = async () => {
 
     bleConnected = true;
     updateConnStatus();
+    lockViewport();
     log("> BLE 연결 성공 (" + bleDevice.name + ")", "#7aa2ff");
   }catch(e){
     log("> BLE ERR " + e, "#ff8b8b");
@@ -702,6 +717,7 @@ async function loadBLEParams(){
   try{
     const v   = await bleCharacteristic.readValue();
     const txt = new TextDecoder().decode(v).trim();
+    lockViewport();
     if(!txt) return null;
     return JSON.parse(txt);
   }catch(e){
@@ -717,6 +733,7 @@ async function bleSend(obj){
   try{
     const msg = JSON.stringify(obj);
     await bleCharacteristic.writeValue(new TextEncoder().encode(msg));
+    lockViewport();   // ★ 전송 후 레이아웃 고정
     log("> BLE: " + msg, "#7aa2ff");
   }catch(e){
     log("> BLE ERR " + e, "#ff8b8b");
@@ -814,11 +831,22 @@ document.getElementById("btnConnect").onclick    = connectSerial;
 
 document.getElementById("btnDisconnect").onclick = async () => {
   await disconnectSerial();
-  if(bleDevice && bleDevice.gatt && bleDevice.gatt.connected){
-    bleDevice.gatt.disconnect();
-  }
+
+  try{
+    if(bleDevice && bleDevice.gatt && bleDevice.gatt.connected){
+      bleDevice.gatt.disconnect();
+    }
+  }catch(e){}
+
+  // ★ 재연결 문제 방지: BLE 객체 완전 초기화
+  bleDevice = null;
+  bleServer = null;
+  bleService = null;
+  bleCharacteristic = null;
+
   bleConnected = false;
   updateConnStatus();
+  lockViewport();
   log("> 모든 연결 해제", "#ffc857");
 };
 
@@ -860,6 +888,7 @@ document.getElementById("btnLoad").onclick = async () => {
   }
 
   applyParamsToUI(data);
+  lockViewport();
   log("> 불러오기 성공!", "#7aa2ff");
 };
 
@@ -880,6 +909,7 @@ document.getElementById("btnReset").onclick = () => {
     radiusLabel = null;
   }
 
+  lockViewport();
   log("> Reset 완료", "#9bb1d6");
 };
 
@@ -889,6 +919,7 @@ document.getElementById("btnReset").onclick = () => {
 moveMarker(INIT.lat, INIT.lon, true);
 setLatLon(INIT.lat, INIT.lon);
 updateConnStatus();
+lockViewport();
 
 </script>
 </body>
