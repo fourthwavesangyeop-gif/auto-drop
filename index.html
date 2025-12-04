@@ -270,6 +270,11 @@
         grid-template-columns:repeat(2, minmax(0, 1fr));
       }
     }
+
+    /* ✅ 모바일 자동 확대(줌) 방지 - 전송시 화면 늘어남 1차 차단 */
+    input, select, textarea, button {
+      font-size:16px !important;
+    }
   </style>
 </head>
 <body>
@@ -935,15 +940,26 @@
   };
 
   /* Dual Send: Serial + BLE */
-  document.getElementById("btnSend").onclick = () => {
-    const line   = buildParamLine();
-    const bleObj = buildBleObjectFromInputs();
+  document.getElementById("btnSend").onclick = async () => {
+  // ✅ 1. 포커스 제거 → 키보드 강제 종료
+  if (document.activeElement) {
+    document.activeElement.blur();
+  }
 
-    if (serialConnected) sendLine(line);
-    if (bleConnected)    bleSend(bleObj);
+  const line   = buildParamLine();
+  const bleObj = buildBleObjectFromInputs();
 
-    log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
-  };
+  if (serialConnected) await sendLine(line);
+  if (bleConnected)    await bleSend(bleObj);
+
+  // ✅ 2. 전송 직후 뷰포트 재고정
+  lockViewport();
+
+  // ✅ 3. 전송 직후 모바일 레이아웃 강제 복구 (이게 핵심)
+  forceRelayout();
+
+  log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
+};
 
   /* Dual Load: Serial + BLE (먼저 성공한 쪽 사용) */
   document.getElementById("btnLoad").onclick = async () => {
@@ -1000,6 +1016,18 @@
     log("> Reset 완료", "#9bb1d6");
   };
 
+  // ✅ 전송 순간 레이아웃 강제 복구 (모바일 핵심)
+  function forceRelayout(){
+    const wrap = document.querySelector(".wrap");
+    if(!wrap) return;
+
+    wrap.style.display = "none";
+    wrap.offsetHeight;   // ✅ reflow 강제 트리거
+    wrap.style.display = "grid";
+
+    lockViewport();
+  }
+  
   /* ========================================================
    * Init
    * ======================================================== */
