@@ -688,6 +688,17 @@ function lockViewport(){
   }
 }
 
+function forceRelayout(){
+  const wrap = document.querySelector(".wrap");
+  if(!wrap) return;
+
+  wrap.style.display = "none";
+  wrap.offsetHeight;   // reflow 강제
+  wrap.style.display = "grid";
+
+  lockViewport();
+}
+  
 document.getElementById("btnBLE").onclick = async () => {
   if(!navigator.bluetooth){
     alert("이 브라우저는 Web Bluetooth를 지원하지 않습니다.");
