@@ -952,11 +952,14 @@
   if (serialConnected) await sendLine(line);
   if (bleConnected)    await bleSend(bleObj);
 
-  // ✅ 2. 전송 직후 뷰포트 재고정
+  // ✅ 2. 1차 뷰포트 고정
   lockViewport();
 
-  // ✅ 3. 전송 직후 모바일 레이아웃 강제 복구 (이게 핵심)
+  // ✅ 3. 1차 레이아웃 강제 복구
   forceRelayout();
+
+  // ✅✅ ✅ 4. 최종 스케일 강제 리셋 (이게 마지막 봉인)
+  forceScaleReset();
 
   log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
 };
@@ -1027,6 +1030,22 @@
 
     lockViewport();
   }
+
+  // ✅ 모바일 브라우저 확대 스케일 강제 리셋 (최종 봉인)
+function forceScaleReset(){
+  if (window.visualViewport) {
+    const vv = window.visualViewport;
+
+    // viewport가 확대된 상태면 강제로 되돌림
+    if (vv.scale && vv.scale !== 1) {
+      document.body.style.transform = "scale(1)";
+      document.body.style.transformOrigin = "0 0";
+    }
+  }
+
+  // 일부 기종 대응용 resize 강제 트리거
+  window.dispatchEvent(new Event("resize"));
+}
   
   /* ========================================================
    * Init
