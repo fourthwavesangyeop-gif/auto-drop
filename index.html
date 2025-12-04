@@ -55,8 +55,15 @@
     }
 
     .card.map-card { display:flex; flex-direction:column; height:100%; }
-    #map { width:100%; aspect-ratio:1 / 1; border-radius:12px; overflow:hidden; }
-
+   
+    #map {
+      width:100%;
+      height:380px;
+      max-height:50vh;
+      border-radius:12px;
+      overflow:hidden;
+    }
+    
     h1 { font-size:18px; margin:0 0 10px; }
 
     .pill {
@@ -851,15 +858,18 @@ document.getElementById("btnDisconnect").onclick = async () => {
 };
 
 /* Dual Send: Serial + BLE */
-document.getElementById("btnSend").onclick = () => {
+document.getElementById("btnSend").onclick = async () => {
   const line   = buildParamLine();
   const bleObj = buildBleObjectFromInputs();
 
-  if(serialConnected) sendLine(line);
-  if(bleConnected)    bleSend(bleObj);
+  if(serialConnected) await sendLine(line);
+  if(bleConnected)    await bleSend(bleObj);
+
+  forceRelayout();   // ✅ ✅ ✅ 이 한 줄이 핵심
 
   log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
 };
+
 
 /* Dual Load: Serial + BLE (먼저 성공한 쪽 사용) */
 document.getElementById("btnLoad").onclick = async () => {
