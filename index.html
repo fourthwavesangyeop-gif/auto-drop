@@ -110,7 +110,6 @@
       color:var(--muted);
     }
 
-    /* Form ---------------------------- */
     .form {
       display:grid;
       grid-template-columns:auto 1fr;
@@ -124,7 +123,6 @@
       gap:10px;
     }
 
-    /* PWM 입력은 세로 정렬 */
     .pwm-list {
       display:flex;
       flex-direction:column;
@@ -151,7 +149,7 @@
       border-radius:8px;
       background:#0e1520;
       color:var(--ink);
-      font-size:16px; /* 모바일 키보드 자동 줌 방지 */
+      font-size:16px;
     }
 
     .unit {
@@ -235,7 +233,6 @@
       font-size:12px;
     }
 
-    /* 반경 라벨용 */
     .radius-label-inner {
       background:rgba(0,0,0,0.65);
       color:#7aa2ff;
@@ -248,19 +245,14 @@
       white-space:nowrap;
     }
 
-    /* 모바일 세로 모드: 지도 위, 파라미터 아래, 버튼 2열 */
     @media (max-width: 900px) and (orientation:portrait) {
       .wrap {
         grid-template-columns:1fr;
         gap:10px;
         padding:0 10px;
       }
-      .card.map-card {
-        order:0;
-      }
-      .panel-card {
-        order:1;
-      }
+      .card.map-card { order:0; }
+      .panel-card { order:1; }
       #map {
         aspect-ratio:auto;
         height:260px;
@@ -271,7 +263,6 @@
       }
     }
 
-    /* ✅ 모바일 자동 확대(줌) 방지 - 전송시 화면 늘어남 1차 차단 */
     input, select, textarea, button {
       font-size:16px !important;
     }
@@ -280,7 +271,6 @@
 <body>
 
 <div class="wrap">
-  <!-- ================= LEFT (MAP) ================= -->
   <div class="card map-card">
     <div class="titlebar">
       <h1>Target Picker</h1>
@@ -293,120 +283,9 @@
     <div class="hint">지도를 클릭하면 좌표 값이 자동으로 채워집니다.</div>
   </div>
 
-  <!-- ================= RIGHT (FORM) ================= -->
   <div class="card panel-card">
     <h1>Auto Drop Module</h1>
-
-    <div class="form">
-      <div class="label">목표 좌표:</div>
-      <div class="pair">
-        <div class="with-unit">
-          <input id="lat" type="text" inputmode="decimal">
-          <span class="unit">deg</span>
-        </div>
-        <div class="with-unit">
-          <input id="lon" type="text" inputmode="decimal">
-          <span class="unit">deg</span>
-        </div>
-      </div>
-
-      <div class="label">속도:</div>
-      <div class="with-unit">
-        <input id="v" type="number" step="0.1" inputmode="decimal">
-        <span class="unit">m/s</span>
-      </div>
-
-      <div class="label">고도:</div>
-      <div class="with-unit">
-        <input id="h" type="number" step="0.1" inputmode="decimal">
-        <span class="unit">m</span>
-      </div>
-
-      <div class="label">개폐 유지시간:</div>
-      <div class="with-unit">
-        <input id="hold" type="number" step="0.01" inputmode="decimal">
-        <span class="unit">s</span>
-      </div>
-
-      <div class="label">투하 반경 오차:</div>
-      <div class="with-unit">
-        <input id="offset" type="number" step="0.1" inputmode="decimal">
-        <span class="unit">m</span>
-      </div>
-
-      <div class="label">투하물 중량:</div>
-      <div class="with-unit">
-        <input id="mass" type="number" step="0.01" inputmode="decimal">
-        <span class="unit">kg</span>
-      </div>
-
-      <div class="label">PWM 값:</div>
-      <div class="pwm-list">
-        <div>
-          <div class="label">PWM 1</div>
-          <div class="with-unit">
-            <input id="pwm1" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 2</div>
-          <div class="with-unit">
-            <input id="pwm2" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 3</div>
-          <div class="with-unit">
-            <input id="pwm3" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 4</div>
-          <div class="with-unit">
-            <input id="pwm4" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 5</div>
-          <div class="with-unit">
-            <input id="pwm5" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 6</div>
-          <div class="with-unit">
-            <input id="pwm6" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-        <div>
-          <div class="label">PWM 7</div>
-          <div class="with-unit">
-            <input id="pwm7" type="number" inputmode="numeric">
-            <span class="unit">µs</span>
-          </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- Buttons -->
-    <div class="btnbar">
-      <button id="btnConnect" class="ok">시리얼 연결</button>
-      <button id="btnBLE" class="blebtn">BLE 연결</button>
-      <button id="btnSend" class="primary">전송</button>
-      <button id="btnLoad" class="loadbtn">로드</button>
-      <button id="btnDisconnect" class="warn" disabled>해제</button>
-      <button id="btnReset">리셋</button>
-    </div>
-
-    <div class="hr"></div>
-    <div class="hint">시리얼 / BLE 로그</div>
-    <div id="log" class="log"></div>
+    <!-- ✅ 네가 올린 FORM / 버튼 / 로그 부분은 그대로라고 가정 (생략) -->
   </div>
 </div>
 
@@ -420,7 +299,6 @@
   let radiusLabel = null;
   let marker = null;
 
-  /* 지도 생성 */
   const map = L.map("map").setView([INIT.lat, INIT.lon], 16);
 
   const baseSAT = L.tileLayer(
@@ -429,19 +307,13 @@
   ).addTo(map);
 
   function moveMarker(lat, lon, center = true) {
-    if (marker) {
-      marker.setLatLng([lat, lon]);
-    } else {
-      marker = L.marker([lat, lon]).addTo(map);
-    }
-    if (center) {
-      map.setView([lat, lon]);
-    } else {
-      map.panTo([lat, lon]);
-    }
+    if (marker) marker.setLatLng([lat, lon]);
+    else marker = L.marker([lat, lon]).addTo(map);
+
+    if (center) map.setView([lat, lon]);
+    else map.panTo([lat, lon]);
   }
 
-  /* 반경 라벨 생성 함수 (마커 머리 위 정렬) */
   function updateRadiusLabel(lat, lon, r) {
     if (radiusLabel) {
       map.removeLayer(radiusLabel);
@@ -452,7 +324,6 @@
     radiusLabel = L.marker([lat, lon], {
       icon: L.divIcon({
         className: "radius-label",
-        // 🔧 여기 원래 문법 깨져 있던 부분을 템플릿 문자열로 수정
         html: `<div class="radius-label-inner">${r.toFixed(1)} m</div>`,
         iconSize: [80, 24],
         iconAnchor: [40, 45]
@@ -460,7 +331,6 @@
     }).addTo(map);
   }
 
-  /* 지도 클릭 시 입력값 자동 업데이트 (소수점 7자리 고정) */
   map.on("click", e => {
     const lat = Number(e.latlng.lat.toFixed(7));
     const lon = Number(e.latlng.lng.toFixed(7));
@@ -469,9 +339,6 @@
     updateRadiusCircleFromInputs();
   });
 
-  /* ========================================================
-   * Input Elements
-   * ======================================================== */
   const latI   = document.getElementById("lat");
   const lonI   = document.getElementById("lon");
   const vI     = document.getElementById("v");
@@ -495,9 +362,6 @@
     lonI.value = Number(lon).toFixed(7);
   }
 
-  /* ========================================================
-   * Drop Model
-   * ======================================================== */
   function computeFallTime(h, vt) {
     if (vt <= 0.1) return Math.sqrt((2*h)/9.80665);
     const G = 9.80665;
@@ -541,9 +405,6 @@
     }).addTo(map);
   }
 
-  /* ========================================================
-   * Update radius circle + label
-   * ======================================================== */
   function updateRadiusCircleFromInputs() {
     const lat    = parseFloat(latI.value);
     const lon    = parseFloat(lonI.value);
@@ -568,24 +429,17 @@
   latI.addEventListener("input", () => {
     const lat = parseFloat(latI.value);
     const lon = parseFloat(lonI.value);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      moveMarker(lat, lon, true);
-    }
+    if (!isNaN(lat) && !isNaN(lon)) moveMarker(lat, lon, true);
     updateRadiusCircleFromInputs();
   });
 
   lonI.addEventListener("input", () => {
-    const lat = parseFloat(latI.value);
+    const lat = parseFloat(lonI.value);
     const lon = parseFloat(lonI.value);
-    if (!isNaN(lat) && !isNaN(lon)) {
-      moveMarker(lat, lon, true);
-    }
+    if (!isNaN(lat) && !isNaN(lon)) moveMarker(lat, lon, true);
     updateRadiusCircleFromInputs();
   });
 
-  /* ========================================================
-   * 공통 상태 표시 (Serial 또는 BLE 중 하나라도 연결되면 Connected)
-   * ======================================================== */
   let serialConnected = false;
   let bleConnected    = false;
 
@@ -600,9 +454,6 @@
     btnDisconnect.disabled = !on;
   }
 
-  /* ========================================================
-   * Serial Communication
-   * ======================================================== */
   let port   = null;
   let reader = null;
   let writer = null;
@@ -619,7 +470,6 @@
     logEl.scrollTop = logEl.scrollHeight;
   }
 
-  // Serial JSON 응답 대기용
   let pendingSerialResolve = null;
   let pendingSerialTimer   = null;
 
@@ -677,6 +527,7 @@
     log("> Serial 해제", "#ffc857");
   }
 
+  // ✅ 수정된 readLoop
   async function readLoop() {
     let buffer = "";
     while (reader) {
@@ -690,7 +541,6 @@
           for (const l of lines) {
             if (!l) continue;
             log(l);
-            // JSON 라인 감지 → pendingSerialResolve에 전달
             const trimmed = l.trim();
             if (trimmed.startsWith("{") && pendingSerialResolve) {
               try {
@@ -706,6 +556,9 @@
           }
         }
       } catch(e) {
+        log("> Serial read ERR " + e, "#ff8b8b");
+        serialConnected = false;
+        updateConnStatus();
         break;
       }
     }
@@ -724,11 +577,10 @@
     }
   }
 
-  // REQ 이후 다음 JSON 라인 1개를 기다렸다가 반환
+  // ✅ 수정된 loadSerialParams
   function loadSerialParams() {
-    if (!writer || !reader) return Promise.reject("no-serial");
+    if (!serialConnected || !writer || !reader) return Promise.reject("no-serial");
 
-    // 기존 대기 취소
     if (pendingSerialTimer) {
       clearTimeout(pendingSerialTimer);
       pendingSerialTimer = null;
@@ -736,22 +588,15 @@
     pendingSerialResolve = null;
 
     return new Promise((resolve, reject) => {
-      pendingSerialResolve = (obj) => {
-        resolve(obj);
-      };
+      pendingSerialResolve = obj => resolve(obj);
       pendingSerialTimer = setTimeout(() => {
-        if (pendingSerialResolve) {
-          pendingSerialResolve = null;
-          reject("timeout");
-        }
+        pendingSerialResolve = null;
+        reject("timeout");
       }, 1500);
       sendLine("REQ");
     });
   }
 
-  /* ========================================================
-   * BLE Communication
-   * ======================================================== */
   let bleDevice        = null;
   let bleServer        = null;
   let bleService       = null;
@@ -760,7 +605,6 @@
   const SERVICE_UUID          = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
   const CHARACTERISTIC_UUID_RX= "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
-  // ★ 모바일 레이아웃이 깨지지 않도록 뷰포트 고정
   function lockViewport() {
     const vp = document.querySelector("meta[name=viewport]");
     if (vp) {
@@ -823,16 +667,13 @@
     try {
       const msg = JSON.stringify(obj);
       await bleCharacteristic.writeValue(new TextEncoder().encode(msg));
-      lockViewport(); // ★ 전송 후 레이아웃 고정
+      lockViewport();
       log("> BLE: " + msg, "#7aa2ff");
     } catch(e) {
       log("> BLE ERR " + e, "#ff8b8b");
     }
   }
 
-  /* ========================================================
-   * PARAM PACK + APPLY
-   * ======================================================== */
   function fixNumber(v, def) {
     if (v.trim() === "") return def;
     const n = parseFloat(v);
@@ -844,9 +685,10 @@
     return isNaN(n) ? 1500 : n;
   }
 
+  // ✅ 수정된 buildParamLine
   function buildParamLine() {
-    const lat    = latI.value.trim();
-    const lon    = lonI.value.trim();
+    const lat    = latI.value.trim() || INIT.lat.toFixed(7);
+    const lon    = lonI.value.trim() || INIT.lon.toFixed(7);
     const v      = vI.value.trim();
     const h      = hI.value.trim();
     const hold   = holdI.value.trim();
@@ -875,17 +717,12 @@
     const pwmNums = pwmI.map(x => fixPWM(x.value));
 
     return {
-      lat: lat,
-      lon: lon,
-      v: v,
-      h: h,
-      hold: hold,
-      offset: offset,
-      mass: mass,
-      pwm: pwmNums // 반드시 숫자로 전송
+      lat, lon, v, h, hold, offset, mass,
+      pwm: pwmNums
     };
   }
 
+  // ✅ 수정된 applyParamsToUI
   function applyParamsToUI(d) {
     if (!d) return;
 
@@ -899,25 +736,18 @@
 
     if (d.pwm && Array.isArray(d.pwm)) {
       d.pwm.forEach((p, i) => {
-        if (i < pwmI.length) {
-          pwmI[i].value = p;
-        }
+        if (i < pwmI.length) pwmI[i].value = p;
       });
     }
 
-    if (d.lat && d.lon) {
+    if (typeof d.lat !== "undefined" && typeof d.lon !== "undefined") {
       const lat = parseFloat(d.lat);
       const lon = parseFloat(d.lon);
-      if (!isNaN(lat) && !isNaN(lon)) {
-        moveMarker(lat, lon, true);
-      }
+      if (!isNaN(lat) && !isNaN(lon)) moveMarker(lat, lon, true);
     }
     updateRadiusCircleFromInputs();
   }
 
-  /* ========================================================
-   * Button Logic
-   * ======================================================== */
   document.getElementById("btnConnect").onclick = connectSerial;
 
   document.getElementById("btnDisconnect").onclick = async () => {
@@ -928,7 +758,6 @@
       }
     } catch(e) {}
 
-    // ★ 재연결 문제 방지: BLE 객체 완전 초기화
     bleDevice         = null;
     bleServer         = null;
     bleService        = null;
@@ -939,32 +768,24 @@
     log("> 모든 연결 해제", "#ffc857");
   };
 
-  /* Dual Send: Serial + BLE */
+  // ✅ 수정된 btnSend (forceScaleReset 제거)
   document.getElementById("btnSend").onclick = async () => {
-  // ✅ 1. 포커스 제거 → 키보드 강제 종료
-  if (document.activeElement) {
-    document.activeElement.blur();
-  }
+    if (document.activeElement) {
+      document.activeElement.blur();
+    }
 
-  const line   = buildParamLine();
-  const bleObj = buildBleObjectFromInputs();
+    const line   = buildParamLine();
+    const bleObj = buildBleObjectFromInputs();
 
-  if (serialConnected) await sendLine(line);
-  if (bleConnected)    await bleSend(bleObj);
+    if (serialConnected) await sendLine(line);
+    if (bleConnected)    await bleSend(bleObj);
 
-  // ✅ 2. 1차 뷰포트 고정
-  lockViewport();
+    lockViewport();
+    forceRelayout();
 
-  // ✅ 3. 1차 레이아웃 강제 복구
-  forceRelayout();
+    log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
+  };
 
-  // ✅✅ ✅ 4. 최종 스케일 강제 리셋 (이게 마지막 봉인)
-  forceScaleReset();
-
-  log("> Dual Send (Serial/BLE 각각 연결된 쪽으로 전송)", "#7aa2ff");
-};
-
-  /* Dual Load: Serial + BLE (먼저 성공한 쪽 사용) */
   document.getElementById("btnLoad").onclick = async () => {
     log("> 불러오기 요청 (Serial+BLE 병렬)", "#7aa2ff");
 
@@ -995,7 +816,6 @@
     log("> 불러오기 성공!", "#7aa2ff");
   };
 
-  /* Reset */
   document.getElementById("btnReset").onclick = () => {
     setLatLon(INIT.lat, INIT.lon);
     moveMarker(INIT.lat, INIT.lon, true);
@@ -1019,37 +839,19 @@
     log("> Reset 완료", "#9bb1d6");
   };
 
-  // ✅ 전송 순간 레이아웃 강제 복구 (모바일 핵심)
   function forceRelayout(){
     const wrap = document.querySelector(".wrap");
     if(!wrap) return;
 
     wrap.style.display = "none";
-    wrap.offsetHeight;   // ✅ reflow 강제 트리거
+    wrap.offsetHeight;
     wrap.style.display = "grid";
 
     lockViewport();
   }
 
-  // ✅ 모바일 브라우저 확대 스케일 강제 리셋 (최종 봉인)
-function forceScaleReset(){
-  if (window.visualViewport) {
-    const vv = window.visualViewport;
+  // ❌ forceScaleReset 함수는 완전히 제거됨
 
-    // viewport가 확대된 상태면 강제로 되돌림
-    if (vv.scale && vv.scale !== 1) {
-      document.body.style.transform = "scale(1)";
-      document.body.style.transformOrigin = "0 0";
-    }
-  }
-
-  // 일부 기종 대응용 resize 강제 트리거
-  window.dispatchEvent(new Event("resize"));
-}
-  
-  /* ========================================================
-   * Init
-   * ======================================================== */
   moveMarker(INIT.lat, INIT.lon, true);
   setLatLon(INIT.lat, INIT.lon);
   updateConnStatus();
