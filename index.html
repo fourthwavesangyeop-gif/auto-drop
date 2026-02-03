@@ -245,6 +245,9 @@
       white-space:nowrap;
     }
 
+    /* ✅ DivIcon 마커 클릭 방지(선택) */
+    .custom-pin { pointer-events:none; }
+
     @media (max-width: 900px) and (orientation:portrait) {
       .wrap {
         grid-template-columns:1fr;
@@ -285,7 +288,7 @@
 
   <div class="card panel-card">
     <h1>Auto Drop Module</h1>
-    
+
     <div class="form">
       <div class="label">목표 좌표:</div>
       <div class="pair">
@@ -402,26 +405,65 @@
 <script>
   /* ========================================================
    * Leaflet Map + Drop Radius Label
+   * (VWorld Satellite + Hybrid)
    * ======================================================== */
   const INIT = { lat:37.8765842, lon:127.1577533 };
+
+  // ✅ VWorld 인증키
+  const VWORLD_KEY = "322172D4-AF79-3A3D-83F6-7D97BAB01C2A";
 
   let dropCircle = null;
   let radiusLabel = null;
   let marker = null;
 
-  const map = L.map("map").setView([INIT.lat, INIT.lon], 16);
+  const map = L.map("map", { zoomControl:true }).setView([INIT.lat, INIT.lon], 16);
 
+  // ✅ VWorld Satellite (고해상도 위성)
   const baseSAT = L.tileLayer(
-    "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`,
     { maxZoom: 19 }
   ).addTo(map);
 
-  function moveMarker(lat, lon, center = true) {
-    if (marker) marker.setLatLng([lat, lon]);
-    else marker = L.marker([lat, lon]).addTo(map);
+  // ✅ VWorld Hybrid (라벨/경계)
+  const overlayHybrid = L.tileLayer(
+    `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Hybrid/{z}/{y}/{x}.png`,
+    { maxZoom: 19, opacity: 1.0 }
+  ).addTo(map);
 
-    if (center) map.setView([lat, lon]);
-    else map.panTo([lat, lon]);
+  // ✅ 레이어 토글
+  L.control.layers(
+    { "VWorld Satellite": baseSAT },
+    { "Hybrid Labels": overlayHybrid },
+    { collapsed: true }
+  ).addTo(map);
+
+  // ✅ 지도 타일 로딩 실패 디버그 (로그에 출력)
+  baseSAT.on("tileerror", e => {
+    log("> VWorld SAT tileerror (key/referrer/limit 확인)", "#ff8b8b");
+  });
+  overlayHybrid.on("tileerror", e => {
+    log("> VWorld HYB tileerror (key/referrer/limit 확인)", "#ff8b8b");
+  });
+
+  // ✅ 기본 마커가 안 보이는 환경에서도 항상 보이게 DivIcon 사용
+  const markerIcon = L.divIcon({
+    className: "custom-pin",
+    html: `<div style="
+      width:14px;height:14px;border-radius:50%;
+      background:#7aa2ff;border:2px solid #0b0f14;
+      box-shadow:0 0 0 3px rgba(122,162,255,.25);
+    "></div>`,
+    iconSize: [14, 14],
+    iconAnchor: [7, 7]
+  });
+
+  function moveMarker(lat, lon, center = true) {
+    const ll = [lat, lon];
+    if (marker) marker.setLatLng(ll);
+    else marker = L.marker(ll, { icon: markerIcon }).addTo(map);
+
+    if (center) map.setView(ll);
+    else map.panTo(ll);
   }
 
   function updateRadiusLabel(lat, lon, r) {
@@ -449,13 +491,13 @@
     updateRadiusCircleFromInputs();
   });
 
-  const latI   = document.getElementById("lat");
-  const lonI   = document.getElementById("lon");
-  const vI     = document.getElementById("v");
-  const hI     = document.getElementById("h");
-  const holdI  = document.getElementById("hold");
-  const offsetI= document.getElementById("offset");
-  const massI  = document.getElementById("mass");
+  const latI    = document.getElementById("lat");
+  const lonI    = document.getElementById("lon");
+  const vI      = document.getElementById("v");
+  const hI      = document.getElementById("h");
+  const holdI   = document.getElementById("hold");
+  const offsetI = document.getElementById("offset");
+  const massI   = document.getElementById("mass");
 
   const pwmI = [
     document.getElementById("pwm1"),
@@ -543,8 +585,9 @@
     updateRadiusCircleFromInputs();
   });
 
+  // ✅ lon 입력 이벤트 버그 수정 유지
   lonI.addEventListener("input", () => {
-    const lat = parseFloat(lonI.value);
+    const lat = parseFloat(latI.value);
     const lon = parseFloat(lonI.value);
     if (!isNaN(lat) && !isNaN(lon)) moveMarker(lat, lon, true);
     updateRadiusCircleFromInputs();
@@ -616,6 +659,7 @@
 
     try {
       if (writer) {
+        // writable을 닫는 방식은 브라우저 구현에 따라 다를 수 있어 try/catch 유지
         await writer.close();
         writer.releaseLock();
       }
@@ -637,7 +681,6 @@
     log("> Serial 해제", "#ffc857");
   }
 
-  // ✅ 수정된 readLoop
   async function readLoop() {
     let buffer = "";
     while (reader) {
@@ -687,7 +730,6 @@
     }
   }
 
-  // ✅ 수정된 loadSerialParams
   function loadSerialParams() {
     if (!serialConnected || !writer || !reader) return Promise.reject("no-serial");
 
@@ -702,18 +744,18 @@
       pendingSerialTimer = setTimeout(() => {
         pendingSerialResolve = null;
         reject("timeout");
-      }, 1500);
+      }, 2000); // ⬅️ 조금 여유롭게
       sendLine("REQ");
     });
   }
 
-  let bleDevice        = null;
-  let bleServer        = null;
-  let bleService       = null;
-  let bleCharacteristic= null;
+  let bleDevice         = null;
+  let bleServer         = null;
+  let bleService        = null;
+  let bleCharacteristic = null;
 
-  const SERVICE_UUID          = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
-  const CHARACTERISTIC_UUID_RX= "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
+  const SERVICE_UUID            = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+  const CHARACTERISTIC_UUID_RX  = "6e400002-b5a3-f393-e0a9-e50e24dcca9e";
 
   function lockViewport() {
     const vp = document.querySelector("meta[name=viewport]");
@@ -750,14 +792,35 @@
       bleConnected = true;
       updateConnStatus();
       lockViewport();
-      log("> BLE 연결 성공 (" + bleDevice.name + ")", "#7aa2ff");
+      log("> BLE 연결 성공 (" + (bleDevice.name || "noname") + ")", "#7aa2ff");
+
+      // ✅ 디버그: characteristic properties 출력
+      try {
+        const p = bleCharacteristic.properties;
+        log("> BLE props: " + JSON.stringify({
+          read: p.read, write: p.write, writeWithoutResponse: p.writeWithoutResponse,
+          notify: p.notify, indicate: p.indicate
+        }), "#9bb1d6");
+      } catch(e) {}
+
     } catch(e) {
       log("> BLE ERR " + e, "#ff8b8b");
     }
   };
 
+  // ⚠️ 주의: RX characteristic은 read가 false인 경우가 많음.
+  // read가 false면 이 함수는 null을 반환하도록 로그만 남김.
   async function loadBLEParams() {
     if (!bleCharacteristic) return null;
+
+    try {
+      const p = bleCharacteristic.properties;
+      if (!p.read) {
+        log("> BLE Load: read 미지원(Notify/TX 특성 필요할 수 있음)", "#ffc857");
+        return null;
+      }
+    } catch(e) {}
+
     try {
       const v   = await bleCharacteristic.readValue();
       const txt = new TextDecoder().decode(v).trim();
@@ -765,6 +828,7 @@
       if (!txt) return null;
       return JSON.parse(txt);
     } catch(e) {
+      log("> BLE Load ERR " + e, "#ff8b8b");
       return null;
     }
   }
@@ -785,7 +849,7 @@
   }
 
   function fixNumber(v, def) {
-    if (v.trim() === "") return def;
+    if ((v + "").trim() === "") return def;
     const n = parseFloat(v);
     return isNaN(n) ? def : n;
   }
@@ -795,15 +859,16 @@
     return isNaN(n) ? 1500 : n;
   }
 
-  // ✅ 수정된 buildParamLine
+  // ✅ Serial 전송도 빈 값 방지(기본값 강제)
   function buildParamLine() {
-    const lat    = latI.value.trim() || INIT.lat.toFixed(7);
-    const lon    = lonI.value.trim() || INIT.lon.toFixed(7);
-    const v      = vI.value.trim();
-    const h      = hI.value.trim();
-    const hold   = holdI.value.trim();
-    const offset = (offsetI.value.trim() === "") ? "0" : offsetI.value.trim();
-    const mass   = massI.value.trim();
+    const lat    = (latI.value.trim() !== "") ? latI.value.trim() : INIT.lat.toFixed(7);
+    const lon    = (lonI.value.trim() !== "") ? lonI.value.trim() : INIT.lon.toFixed(7);
+
+    const v      = String(fixNumber(vI.value, 0));
+    const h      = String(fixNumber(hI.value, 0));
+    const hold   = String(fixNumber(holdI.value, 0.5));
+    const offset = String(fixNumber(offsetI.value, 0));
+    const mass   = String(fixNumber(massI.value, 0.757));
 
     const pwm = pwmI.map(x => fixPWM(x.value));
 
@@ -816,23 +881,20 @@
   }
 
   function buildBleObjectFromInputs() {
-    const lat    = latI.value.trim();
-    const lon    = lonI.value.trim();
+    const lat    = (latI.value.trim() !== "") ? latI.value.trim() : INIT.lat.toFixed(7);
+    const lon    = (lonI.value.trim() !== "") ? lonI.value.trim() : INIT.lon.toFixed(7);
+
     const v      = fixNumber(vI.value, 0);
     const h      = fixNumber(hI.value, 0);
     const hold   = fixNumber(holdI.value, 0.5);
-    const offset = fixNumber(offsetI.value || "0", 0);
+    const offset = fixNumber(offsetI.value, 0);
     const mass   = fixNumber(massI.value, 0.757);
 
     const pwmNums = pwmI.map(x => fixPWM(x.value));
 
-    return {
-      lat, lon, v, h, hold, offset, mass,
-      pwm: pwmNums
-    };
+    return { lat, lon, v, h, hold, offset, mass, pwm: pwmNums };
   }
 
-  // ✅ 수정된 applyParamsToUI
   function applyParamsToUI(d) {
     if (!d) return;
 
@@ -878,11 +940,8 @@
     log("> 모든 연결 해제", "#ffc857");
   };
 
-  // ✅ 수정된 btnSend (forceScaleReset 제거)
   document.getElementById("btnSend").onclick = async () => {
-    if (document.activeElement) {
-      document.activeElement.blur();
-    }
+    if (document.activeElement) document.activeElement.blur();
 
     const line   = buildParamLine();
     const bleObj = buildBleObjectFromInputs();
@@ -900,7 +959,7 @@
     log("> 불러오기 요청 (Serial+BLE 병렬)", "#7aa2ff");
 
     const tasks = [];
-    if (serialConnected) tasks.push(loadSerialParams().catch(()=>null));
+    if (serialConnected) tasks.push(loadSerialParams().catch(e => { log("> Serial Load ERR " + e, "#ff8b8b"); return null; }));
     if (bleConnected)    tasks.push(loadBLEParams().catch(()=>null));
 
     if (tasks.length === 0) {
@@ -929,6 +988,7 @@
   document.getElementById("btnReset").onclick = () => {
     setLatLon(INIT.lat, INIT.lon);
     moveMarker(INIT.lat, INIT.lon, true);
+
     vI.value = "";
     hI.value = "";
     holdI.value = "";
@@ -960,12 +1020,15 @@
     lockViewport();
   }
 
-  // ❌ forceScaleReset 함수는 완전히 제거됨
-
+  // 초기화
   moveMarker(INIT.lat, INIT.lon, true);
   setLatLon(INIT.lat, INIT.lon);
   updateConnStatus();
   lockViewport();
+
+  // 초기 반경 표시를 원하면(기본값 기반), 아래 1줄 주석 해제:
+  // applyParamsToUI({ v:0, h:0, hold:0.5, offset:0, mass:0.757, pwm:[1500,1500,1500,1500,1500,1500,1500], lat:INIT.lat.toFixed(7), lon:INIT.lon.toFixed(7) });
+
 </script>
 
 </body>
