@@ -405,7 +405,7 @@
 <script>
   /* ========================================================
    * Leaflet Map + Drop Radius Label
-   * (VWorld Satellite + Hybrid)
+   * (VWorld Satellite + Hybrid + 확대 상향)
    * ======================================================== */
   const INIT = { lat:37.8765842, lon:127.1577533 };
 
@@ -416,18 +416,32 @@
   let radiusLabel = null;
   let marker = null;
 
-  const map = L.map("map", { zoomControl:true }).setView([INIT.lat, INIT.lon], 16);
+  // ✅ 확대(zoom) 상향 + 모바일 줌 체감 개선
+  // - maxZoom: Leaflet 상한(사용자 확대 가능)
+  // - zoomSnap: 0.25면 더 부드럽게 확대(선택)
+  // - wheelPxPerZoomLevel: 값 낮을수록 휠 확대가 민감(선택)
+  const map = L.map("map", {
+    zoomControl: true,
+    maxZoom: 22,
+    zoomSnap: 0.25,
+    zoomDelta: 0.5,
+    wheelPxPerZoomLevel: 80,
+    touchZoom: true,
+    doubleClickZoom: true
+  }).setView([INIT.lat, INIT.lon], 16);
 
   // ✅ VWorld Satellite (고해상도 위성)
+  // maxNativeZoom: 실제 타일 제공 줌(가정 19)
+  // maxZoom: 20~22는 19 타일을 확대하여 표시(빈칸 방지)
   const baseSAT = L.tileLayer(
     `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Satellite/{z}/{y}/{x}.jpeg`,
-    { maxZoom: 19 }
+    { maxZoom: 22, maxNativeZoom: 19 }
   ).addTo(map);
 
   // ✅ VWorld Hybrid (라벨/경계)
   const overlayHybrid = L.tileLayer(
     `https://api.vworld.kr/req/wmts/1.0.0/${VWORLD_KEY}/Hybrid/{z}/{y}/{x}.png`,
-    { maxZoom: 19, opacity: 1.0 }
+    { maxZoom: 22, maxNativeZoom: 19, opacity: 1.0 }
   ).addTo(map);
 
   // ✅ 레이어 토글
@@ -445,7 +459,7 @@
     log("> VWorld HYB tileerror (key/referrer/limit 확인)", "#ff8b8b");
   });
 
-  // ✅ 기본 마커가 안 보이는 환경에서도 항상 보이게 DivIcon 사용
+  // ✅ DivIcon 마커
   const markerIcon = L.divIcon({
     className: "custom-pin",
     html: `<div style="
@@ -585,7 +599,6 @@
     updateRadiusCircleFromInputs();
   });
 
-  // ✅ lon 입력 이벤트 버그 수정 유지
   lonI.addEventListener("input", () => {
     const lat = parseFloat(latI.value);
     const lon = parseFloat(lonI.value);
@@ -659,7 +672,6 @@
 
     try {
       if (writer) {
-        // writable을 닫는 방식은 브라우저 구현에 따라 다를 수 있어 try/catch 유지
         await writer.close();
         writer.releaseLock();
       }
@@ -744,7 +756,7 @@
       pendingSerialTimer = setTimeout(() => {
         pendingSerialResolve = null;
         reject("timeout");
-      }, 2000); // ⬅️ 조금 여유롭게
+      }, 2000);
       sendLine("REQ");
     });
   }
@@ -794,7 +806,6 @@
       lockViewport();
       log("> BLE 연결 성공 (" + (bleDevice.name || "noname") + ")", "#7aa2ff");
 
-      // ✅ 디버그: characteristic properties 출력
       try {
         const p = bleCharacteristic.properties;
         log("> BLE props: " + JSON.stringify({
@@ -808,15 +819,13 @@
     }
   };
 
-  // ⚠️ 주의: RX characteristic은 read가 false인 경우가 많음.
-  // read가 false면 이 함수는 null을 반환하도록 로그만 남김.
   async function loadBLEParams() {
     if (!bleCharacteristic) return null;
 
     try {
       const p = bleCharacteristic.properties;
       if (!p.read) {
-        log("> BLE Load: read 미지원(Notify/TX 특성 필요할 수 있음)", "#ffc857");
+        log("> BLE Load: read 미지원(Notify/TX 특성 필요)", "#ffc857");
         return null;
       }
     } catch(e) {}
@@ -859,7 +868,6 @@
     return isNaN(n) ? 1500 : n;
   }
 
-  // ✅ Serial 전송도 빈 값 방지(기본값 강제)
   function buildParamLine() {
     const lat    = (latI.value.trim() !== "") ? latI.value.trim() : INIT.lat.toFixed(7);
     const lon    = (lonI.value.trim() !== "") ? lonI.value.trim() : INIT.lon.toFixed(7);
@@ -1025,10 +1033,6 @@
   setLatLon(INIT.lat, INIT.lon);
   updateConnStatus();
   lockViewport();
-
-  // 초기 반경 표시를 원하면(기본값 기반), 아래 1줄 주석 해제:
-  // applyParamsToUI({ v:0, h:0, hold:0.5, offset:0, mass:0.757, pwm:[1500,1500,1500,1500,1500,1500,1500], lat:INIT.lat.toFixed(7), lon:INIT.lon.toFixed(7) });
-
 </script>
 
 </body>
